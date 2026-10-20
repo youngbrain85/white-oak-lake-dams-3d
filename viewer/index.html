@@ -7,11 +7,21 @@
 <meta name="description" content="Indiana DNR White Oak Lake Dams Rehabilitation (2013 bid set) – 3D reconstruction of the Dam No.1 drop spillway, pedestrian bridge and Dam No.2 from the construction drawings.">
 <style>
   /* layout: full-bleed WebGL canvas, glass HUD pinned top-left, reference photos top-right, legend bottom-right (single dark look by choice) */
-  :root { --bg:#0f141a; --panel:rgba(14,18,24,0.78); --fg:#e8edf2; --muted:#9aa6b2; --accent:#7fc1ff; --border:rgba(255,255,255,0.12); color-scheme: dark; }
+  :root { --bg:#0f141a; --panel:rgba(14,18,24,0.62); --fg:#e8edf2; --muted:#9aa6b2; --accent:#7fc1ff; --border:rgba(255,255,255,0.12); color-scheme: dark; }
   html,body { margin:0; height:100%; background:var(--bg); color:var(--fg); font:14px/1.45 -apple-system, "Segoe UI", "Malgun Gothic", Roboto, sans-serif; overflow:hidden; padding-left:max(0px, env(safe-area-inset-left, 0px)); padding-right:max(0px, env(safe-area-inset-right, 0px)); }
   canvas#c { display:block; width:100vw; height:100vh; }
-  #hud { position:fixed; left:max(16px, env(safe-area-inset-left, 0px)); top:calc(16px + env(safe-area-inset-top, 0px)); max-width:min(380px, calc(100vw - 32px)); background:var(--panel); backdrop-filter:blur(8px); border:1px solid var(--border); border-radius:12px; padding:12px 14px; }
-  #hud h1 { font-size:15px; margin:0 0 4px; font-weight:600; }
+  #hud { position:fixed; left:max(16px, env(safe-area-inset-left, 0px)); top:calc(16px + env(safe-area-inset-top, 0px)); max-width:min(380px, calc(100vw - 32px)); background:var(--panel); backdrop-filter:blur(8px); border:1px solid var(--border); border-radius:12px; padding:10px 14px 12px; opacity:0.85; transition:opacity .2s; }
+  #hud:not(:hover):not(:focus-within) { opacity:0.72; }
+  #hud .head { display:flex; align-items:center; gap:8px; }
+  #hud h1 { font-size:15px; margin:0; font-weight:600; flex:1; min-width:0; }
+  #hudToggle { background:rgba(255,255,255,0.08); color:var(--fg); border:1px solid var(--border); border-radius:8px; width:30px; height:30px; font-size:14px; cursor:pointer; flex:none; display:flex; align-items:center; justify-content:center; }
+  #hudToggle:hover { background:rgba(127,193,255,0.25); border-color:var(--accent); }
+  #hud .body { margin-top:4px; }
+  #hud.min { padding:6px 8px 6px 12px; opacity:0.55; border-radius:999px; max-width:min(280px, calc(100vw - 32px)); }
+  #hud.min:hover, #hud.min:focus-within { opacity:0.9; }
+  #hud.min h1 { font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #hud.min .body { display:none; }
+  #hud.min #hudToggle { width:26px; height:26px; }
   #hud .sub { color:var(--muted); font-size:12px; margin-bottom:8px; }
   .views { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 8px; }
   .views button, #btnExport { background:rgba(255,255,255,0.08); color:var(--fg); border:1px solid var(--border); border-radius:8px; padding:5px 9px; font-size:12px; cursor:pointer; }
@@ -30,7 +40,7 @@
   #loader { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:var(--bg); color:var(--muted); font-size:14px; flex-direction:column; gap:10px; z-index:5; }
   .spin { width:28px; height:28px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:sp 1s linear infinite; }
   @keyframes sp { to { transform:rotate(360deg); } }
-  @media (max-width:640px) { #photos { display:none; } #legend { display:none; } }
+  @media (max-width:640px) { #photos { display:none; } #legend { display:none; } #hud { max-width:calc(100vw - 32px); } .views button { padding:7px 10px; font-size:13px; } }
 </style>
 <script type="importmap">
 { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }
@@ -40,7 +50,11 @@
 <canvas id="c"></canvas>
 <div id="loader"><div class="spin"></div><div id="status">Loading…</div></div>
 <div id="hud">
-  <h1>White Oak Lake Dams – 3D Reconstruction</h1>
+  <div class="head">
+    <h1>White Oak Lake Dams – 3D Reconstruction</h1>
+    <button id="hudToggle" aria-label="Collapse menu" aria-expanded="true" title="Collapse / expand menu">&#x2212;</button>
+  </div>
+  <div class="body">
   <div class="sub">IDNR Project E015001L · Knox County, Indiana · 2013 Bid Set (Sheets 1–30)</div>
   <div class="views">
     <button data-view="bridge">Bridge &amp; Spillway</button>
@@ -58,8 +72,28 @@
     <label><input type="checkbox" id="tgWater" checked> Lake 1 water</label>
   </div>
   <button id="btnExport">Export GLB (Windows 3D Viewer / Blender)</button>
-  <div style="font-size:11px;color:var(--muted);margin-top:6px">Drag: orbit · Wheel: zoom · Right-drag: pan</div>
+  <div id="hint" style="font-size:11px;color:var(--muted);margin-top:6px">Drag: orbit · Wheel: zoom · Right-drag: pan</div>
+  </div>
 </div>
+<script>
+(function () {
+  var hud = document.getElementById('hud'), btn = document.getElementById('hudToggle');
+  var touch = matchMedia('(pointer: coarse)').matches;
+  if (touch) document.getElementById('hint').textContent = 'One finger: orbit · Pinch: zoom · Two fingers: pan';
+  var saved = null; try { saved = localStorage.getItem('hudMin'); } catch (e) {}
+  var min = saved !== null ? saved === '1' : (innerWidth < 700 || touch);
+  function apply() {
+    hud.classList.toggle('min', min);
+    btn.innerHTML = min ? '&#x2b;' : '&#x2212;';
+    btn.setAttribute('aria-expanded', String(!min));
+    btn.setAttribute('aria-label', min ? 'Expand menu' : 'Collapse menu');
+  }
+  apply();
+  btn.addEventListener('click', function () { min = !min; apply(); try { localStorage.setItem('hudMin', min ? '1' : '0'); } catch (e) {} });
+  // on small screens, collapse again after picking a camera view so the scene is unobstructed
+  document.querySelectorAll('[data-view]').forEach(function (b) { b.addEventListener('click', function () { if (innerWidth < 700) { min = true; apply(); } }); });
+})();
+</script>
 <div id="photos">
   <div class="t">Existing-condition photos (sheet 6) – click to enlarge</div>
   <img src="assets/photo1.jpg" alt="existing spillway walkway"><div class="cap">Existing timber walkway and concrete spillway walls slated for demolition (pre-2013)</div>
