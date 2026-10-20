@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>White Oak Lake Dam 3D</title>
+<meta name="description" content="Indiana DNR White Oak Lake Dams Rehabilitation (2013 bid set) – 3D reconstruction of the Dam No.1 drop spillway, pedestrian bridge and Dam No.2 from the construction drawings.">
+<style>
+  /* layout: full-bleed WebGL canvas, glass HUD pinned top-left, reference photos top-right, legend bottom-right (single dark look by choice) */
+  :root { --bg:#0f141a; --panel:rgba(14,18,24,0.78); --fg:#e8edf2; --muted:#9aa6b2; --accent:#7fc1ff; --border:rgba(255,255,255,0.12); color-scheme: dark; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg); font:14px/1.45 -apple-system, "Segoe UI", "Malgun Gothic", Roboto, sans-serif; overflow:hidden; padding-left:max(0px, env(safe-area-inset-left, 0px)); padding-right:max(0px, env(safe-area-inset-right, 0px)); }
+  canvas#c { display:block; width:100vw; height:100vh; }
+  #hud { position:fixed; left:max(16px, env(safe-area-inset-left, 0px)); top:calc(16px + env(safe-area-inset-top, 0px)); max-width:min(380px, calc(100vw - 32px)); background:var(--panel); backdrop-filter:blur(8px); border:1px solid var(--border); border-radius:12px; padding:12px 14px; }
+  #hud h1 { font-size:15px; margin:0 0 4px; font-weight:600; }
+  #hud .sub { color:var(--muted); font-size:12px; margin-bottom:8px; }
+  .views { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 8px; }
+  .views button, #btnExport { background:rgba(255,255,255,0.08); color:var(--fg); border:1px solid var(--border); border-radius:8px; padding:5px 9px; font-size:12px; cursor:pointer; }
+  .views button:hover, #btnExport:hover { background:rgba(127,193,255,0.25); border-color:var(--accent); }
+  .toggles { display:flex; gap:12px; font-size:12px; color:var(--muted); margin-bottom:8px; }
+  .toggles label { display:flex; gap:4px; align-items:center; cursor:pointer; }
+  #status { font-size:12px; color:var(--accent); min-height:16px; }
+  #legend { position:fixed; right:max(16px, env(safe-area-inset-right, 0px)); bottom:calc(16px + env(safe-area-inset-bottom, 0px)); background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:10px 12px; font-size:12px; color:var(--muted); max-width:min(360px, calc(100vw - 32px)); }
+  #legend b { color:var(--fg); }
+  #photos { position:fixed; right:max(16px, env(safe-area-inset-right, 0px)); top:calc(16px + env(safe-area-inset-top, 0px)); width:150px; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:8px; cursor:pointer; transition:width .2s; }
+  #photos.open { width:min(520px, calc(100vw - 32px)); }
+  #photos .t { font-size:11px; color:var(--muted); margin-bottom:6px; }
+  #photos img { width:100%; border-radius:6px; margin-bottom:6px; display:block; }
+  #photos .cap { font-size:11px; color:var(--muted); margin:-2px 0 8px; display:none; }
+  #photos.open .cap { display:block; }
+  #loader { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:var(--bg); color:var(--muted); font-size:14px; flex-direction:column; gap:10px; z-index:5; }
+  .spin { width:28px; height:28px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:sp 1s linear infinite; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+  @media (max-width:640px) { #photos { display:none; } #legend { display:none; } }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="loader"><div class="spin"></div><div id="status">Loading…</div></div>
+<div id="hud">
+  <h1>White Oak Lake Dams – 3D Reconstruction</h1>
+  <div class="sub">IDNR Project E015001L · Knox County, Indiana · 2013 Bid Set (Sheets 1–30)</div>
+  <div class="views">
+    <button data-view="bridge">Bridge &amp; Spillway</button>
+    <button data-view="weir">Semicircular Weir</button>
+    <button data-view="basin">Stilling Basin</button>
+    <button data-view="outlet">Riprap Outlet</button>
+    <button data-view="walk">Walkway</button>
+    <button data-view="dam1">Dam No. 1</button>
+    <button data-view="dam2">Dam No. 2 / Lake 2</button>
+    <button data-view="aerial">Aerial</button>
+  </div>
+  <div class="toggles">
+    <label><input type="checkbox" id="tgTrees" checked> Trees</label>
+    <label><input type="checkbox" id="tgGrass" checked> Grass</label>
+    <label><input type="checkbox" id="tgWater" checked> Lake 1 water</label>
+  </div>
+  <button id="btnExport">Export GLB (Windows 3D Viewer / Blender)</button>
+  <div style="font-size:11px;color:var(--muted);margin-top:6px">Drag: orbit · Wheel: zoom · Right-drag: pan</div>
+</div>
+<div id="photos">
+  <div class="t">Existing-condition photos (sheet 6) – click to enlarge</div>
+  <img src="assets/photo1.jpg" alt="existing spillway walkway"><div class="cap">Existing timber walkway and concrete spillway walls slated for demolition (pre-2013)</div>
+  <img src="assets/photo2.jpg" alt="existing spillway walkway 2"><div class="cap">Existing outlet channel and timber walkway</div>
+  <img src="assets/photo3.jpg" alt="existing spillway walls"><div class="cap">Existing concrete walls, to be broken up and reused as the base of the new riprap channel</div>
+</div>
+<div id="legend">
+  <b>Design elements</b> — 40′ semicircular concrete overflow weir (crest EL 477.0 = normal pool), 1′ side walls (EL 480→476), 2′ floor slab (EL 474→470), 3 baffle blocks and 6 end-sill blocks, 46′ pre-engineered steel truss pedestrian bridge (deck EL 482), 42″ chain-link fence, 24″ Class I riprap outlet channel, Dam No. 1 crest EL 480 (10:1 downstream slope), Dam No. 2 crest EL 495 (3:1 slopes, paved access drive), Lake 1 EL 477 / Lake 2 EL 490.4. Terrain and vegetation derived from the 2005 aerial and contours in the drawings.
+</div>
+<script>window.ASSET_BASE = 'assets/';</script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
