@@ -24,6 +24,10 @@ built entirely from the September 2013 bid-set drawings (30 sheets, Commonwealth
 | `renders/` | Eight preset camera views at 1600×900. |
 | `ref/` | The existing-condition photos and the 2005 aerial crop extracted from the PDF, used as references. |
 
+## Live viewer
+
+https://youngbrain85.github.io/white-oak-lake-dams-3d/viewer/ (GitHub Pages, served from the `main` branch root; `index.html` at the root redirects to the viewer)
+
 ## Running the viewer locally
 
 The viewer fetches binary assets, so it has to be served over HTTP (double-clicking `index.html` will not load the terrain).
