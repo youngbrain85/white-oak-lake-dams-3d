@@ -2,55 +2,63 @@
 
 A photoreal-leaning 3D reconstruction of the **White Oak Lake Dams Rehabilitation of Dam 1 and 2 / Dam Upgrade Project**
 (Indiana Department of Natural Resources, Project No. E015001L, White Oak State Fishing Area, Knox County, Indiana),
-built entirely from the September 2013 bid-set drawings (30 sheets, Commonwealth Engineers / KIVA Structural Engineers).
+built from the September 2013 bid-set drawings (30 sheets, Commonwealth Engineers / KIVA Structural Engineers).
 
-![Stilling basin and pedestrian bridge](renders/basin.png)
+Version 2 rebuilds the whole scene in **Blender 5.2** and renders it with **Cycles**; the web viewer now loads the Blender scene
+exported to glTF. The original procedural Three.js build is kept as `viewer-legacy/`.
+
+**Live:** https://youngbrain85.github.io/white-oak-lake-dams-3d/ (render gallery) ·
+https://youngbrain85.github.io/white-oak-lake-dams-3d/viewer/ (interactive viewer)
+
+![Stilling basin, Cycles render](renders/cycles/basin.png)
 
 | Semicircular weir | Riprap outlet channel | Aerial |
 |---|---|---|
-| ![](renders/weir.png) | ![](renders/outlet.png) | ![](renders/aerial.png) |
+| ![](renders/cycles/weir.png) | ![](renders/cycles/outlet.png) | ![](renders/cycles/aerial.png) |
 
-## What is in the repository
+## Repository layout
 
 | Path | Contents |
 |---|---|
-| `viewer/` | Browser viewer (Three.js r170, ES modules from jsDelivr). Open `index.html` through any static web server. |
-| `viewer/assets/` | Generated terrain heightmap (16-bit, encoded in PNG), aerial-derived albedo, water masks, tree/grass placements, procedural PBR textures and the three existing-condition photos from sheet 6. |
-| `model/white_oak_lake_dams.glb` | The whole scene baked to glTF binary (41 MB). Opens directly in Windows **3D Viewer**, Blender, Unity, Unreal, etc. Units are feet, Y-up, elevations in NAVD88. |
-| `tools/gen_terrain.py` | Builds the heightmap, masks, albedo and vegetation placements from the aerial embedded in sheet 3 plus the contour/profile data in the plans. |
-| `tools/gen_textures.py` | Procedural, tileable textures (concrete, riprap, grass, gravel, wood, weathering steel, chain-link, leaf sprites, water normals). |
-| `tools/build.py`, `tools/index_template.html` | Produce `index.html` variants (CDN / local / artifact) from one template. |
-| `tools/shot.mjs` | Headless Playwright renderer used for the images in `renders/` and the GLB export. |
-| `renders/` | Eight preset camera views at 1600×900. |
-| `ref/` | The existing-condition photos and the 2005 aerial crop extracted from the PDF, used as references. |
+| `blender/build_scene.py` | Builds the complete scene with the `bpy` module (terrain, lakes, spillway, bridge, rocks, trees, grass, sky, cameras), renders the preset views and exports the GLB. |
+| `blender/gen_blender_textures.py` | Procedural, tileable PBR textures and the leaf / grass alpha cards used by the Blender materials (`blender/tex/`). |
+| `model/white_oak_lake_dams.blend` | The saved Blender scene (open in Blender 4.2+ / 5.x). |
+| `model/white_oak_lake_dams_blender.glb` | Full scene exported from Blender (33 MB). `*.pack.glb` is the meshopt-compressed copy the viewer loads (16 MB); `*_lite*` has decimated terrain for the claude.ai artifact. |
+| `model/white_oak_lake_dams.glb` | Version 1 export from the procedural Three.js scene. |
+| `viewer/` | Three.js r170 viewer for the Blender GLB (meshopt decoding, GPU instancing of the 7,936 trees and 1,750 rocks, AgX tone mapping, Sky). |
+| `viewer-legacy/` | Version 1 procedural viewer. |
+| `renders/cycles/` | Cycles renders of the ten camera presets, 1920×1080, 96 samples + OpenImageDenoise. |
+| `renders/*.png` | Version 1 real-time renders. |
+| `tools/` | Version 1 generators: heightmap / albedo / vegetation placement from the aerial (`gen_terrain.py`), textures, headless renderer. |
+| `ref/` | Existing-condition photos and the 2005 aerial crop extracted from the PDF. |
+| `index.html` | GitHub Pages landing page with the render gallery. |
 
-## Live viewer
-
-https://youngbrain85.github.io/white-oak-lake-dams-3d/viewer/ (GitHub Pages, served from the `main` branch root; `index.html` at the root redirects to the viewer)
-
-## Running the viewer locally
-
-The viewer fetches binary assets, so it has to be served over HTTP (double-clicking `index.html` will not load the terrain).
+## Rebuilding
 
 ```bat
-cd viewer
-python -m http.server 8000
+pip install bpy==5.2.3 numpy pillow scipy
+python blender\gen_blender_textures.py
+python blender\build_scene.py --build
+python blender\build_scene.py --render preview        :: 960x540 quick check of every preset
+python blender\build_scene.py --render final bridge   :: 1920x1080, 96 samples
+python blender\build_scene.py --export                :: model\white_oak_lake_dams_blender.glb
+npx gltfpack -i model\white_oak_lake_dams_blender.glb -o model\white_oak_lake_dams_blender.pack.glb -cc -kn -km -vp 14 -vt 12 -noq
 ```
 
-Then open http://localhost:8000. Controls: drag to orbit, wheel to zoom, right-drag to pan. The HUD has eight camera presets,
-toggles for trees / grass / Lake 1 water, and a button that exports the scene as GLB.
+The build takes a few seconds; a final frame takes roughly ten minutes on four CPU cores. The scene needs the version 1 assets in
+`viewer/assets/` (heightmap, aerial albedo, water and cut masks, tree positions), which `tools/gen_terrain.py` produces from the aerial on sheet 3.
 
-To regenerate the assets from scratch:
+Serve `viewer/` over HTTP (`python -m http.server 8000` in the repository root, then open `/viewer/`); the model is fetched from `../model/`.
 
-```bat
-pip install numpy pillow scipy
-python tools\gen_terrain.py
-python tools\gen_textures.py
-python tools\build.py
-```
+## What the Blender scene contains
 
-`gen_terrain.py` expects the full-resolution aerial (`aerial-03.png`, sheet 3 rendered at 200 dpi, 1 px = 1 ft) in a sibling `ref/` folder;
-extract it with `pdftoppm -r 200 -f 3 -l 3 -png BID_SET_White_Oak_Lake_Dams_2013.pdf aerial`.
+* **Terrain** – 2 ft grid within 500 ft of the spillway, 6 ft beyond, from the 16-bit heightmap; aerial albedo overlaid with tiled grass detail, slope-dependent exposed soil, normal map.
+* **Lakes** – masked water planes at EL 476.6 and 490.4 with a glossy, slightly murky shader and procedural ripples.
+* **Dam No. 1 spillway** – left/right walls and wing walls from the plan polylines (1 ft thick, bottoms at EL 466), 20.5 ft semicircular weir, half-disk + ribbon slab following the longitudinal profile, 3 baffle blocks, 6 end-sill blocks, bridge abutments, 42 in. chain-link on the wall tops, riprap apron and outlet channel with 1,750 individually placed rocks.
+* **Bridge** – 46 ft × 8 ft steel truss with chords, posts, diagonals, pickets, handrails, three stringers and 2×6 plank deck.
+* **Site** – gravel walkway, post-and-cable fences, Dam No. 2 crest road, posts, 48 in. CMP riser with grate, toe-drain outlets.
+* **Vegetation** – three procedural broadleaf tree variants (trunk, two branch levels, 340 leaf cards each) instanced at the 7,936 positions classified from the aerial, with per-instance hue variation; 42,000 grass clumps scattered near the spillway with a density vertex group.
+* **Lighting** – Nishita (multiple-scattering) sky, sun elevation 34°, AgX view transform.
 
 ## Design data reflected in the model
 
@@ -68,8 +76,8 @@ extract it with `pdftoppm -r 200 -f 3 -l 3 -png BID_SET_White_Oak_Lake_Dams_2013
 | Dam No. 2 | Crest EL 495, 3:1 slopes, paved access drive on crest, 48 in. CMP riser (EL 490.31), toe drain outlets | 19–24 |
 | Pool levels | Lake 1 EL 477.0 (lowered from 482.4), Lake 2 EL 490.4 | 7, 19 |
 
-Coordinate frame: world X = east, Y = elevation (ft, NAVD88), Z = south. The spillway is modelled in a local frame whose origin is the
-weir center (spillway station 30+45) with +x pointing downstream (WNW); `app.js` holds the rotation.
+Coordinate frame: Blender X = east, Y = north, Z = elevation (ft, NAVD88); the glTF export is Y-up (X east, Y up, Z south).
+The spillway is modelled in a local frame whose origin is the weir center (spillway station 30+45) with +x pointing downstream (WNW).
 
 ## Assumptions and limits
 

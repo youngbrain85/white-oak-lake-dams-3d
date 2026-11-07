@@ -1,6 +1,7 @@
 node_modules/
 __pycache__/
 *.pyc
-shots/
 .DS_Store
 Thumbs.db
+_downloads/
+blender/out/

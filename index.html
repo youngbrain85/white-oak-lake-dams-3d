@@ -1,5 +1,86 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>White Oak Lake Dams 3D</title>
-<meta http-equiv="refresh" content="0; url=viewer/">
-<link rel="canonical" href="viewer/"></head>
-<body style="font-family:system-ui;padding:2rem">Redirecting to the <a href="viewer/">3D viewer</a>…</body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>White Oak Lake Dams 3D</title>
+<meta name="description" content="Blender/Cycles reconstruction of the White Oak Lake Dams rehabilitation (Knox County, Indiana) from the 2013 IDNR bid-set drawings: render gallery, interactive viewer and downloadable model.">
+<style>
+  /* layout: dark editorial gallery; one hero render, a two-column grid of the other views, a strip of download/viewer links */
+  :root { --bg:#111519; --panel:#181d23; --fg:#e9edf1; --muted:#98a4b0; --accent:#8fc6ff; --border:rgba(255,255,255,0.1); color-scheme: dark; }
+  html,body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.55 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width:1180px; margin:0 auto; padding-block:28px 48px; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); }
+  header h1 { font-size:clamp(24px, 3.4vw, 36px); margin:0 0 6px; letter-spacing:-0.01em; text-wrap:balance; }
+  header p { margin:0; color:var(--muted); max-width:70ch; }
+  .actions { display:flex; flex-wrap:wrap; gap:10px; margin:18px 0 26px; }
+  .actions a { background:var(--panel); border:1px solid var(--border); color:var(--fg); text-decoration:none; padding:9px 14px; border-radius:10px; font-size:14px; }
+  .actions a.primary { background:var(--accent); color:#0b1218; border-color:transparent; font-weight:600; }
+  .actions a:hover { border-color:var(--accent); }
+  figure { margin:0; }
+  figure img { width:100%; height:auto; display:block; border-radius:12px; border:1px solid var(--border); background:#0a0d10; }
+  figcaption { color:var(--muted); font-size:13px; margin:8px 2px 0; }
+  .hero { margin-bottom:22px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:18px; }
+  section h2 { font-size:18px; margin:34px 0 12px; }
+  table { border-collapse:collapse; width:100%; font-size:14px; }
+  th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+  th { color:var(--muted); font-weight:500; }
+  .tbl { overflow-x:auto; }
+  footer { color:var(--muted); font-size:13px; margin-top:40px; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>White Oak Lake Dams – 3D Reconstruction</h1>
+    <p>Indiana DNR Project E015001L, White Oak State Fishing Area, Knox County, Indiana. The Dam No. 1 drop spillway, pedestrian bridge, riprap outlet and Dam No. 2 rebuilt in Blender from the September 2013 bid set and rendered with Cycles.</p>
+  </header>
+  <div class="actions">
+    <a class="primary" href="viewer/">Open interactive viewer</a>
+    <a href="model/white_oak_lake_dams_blender.glb" download>GLB model (33 MB)</a>
+    <a href="model/white_oak_lake_dams.blend" download>Blender file (.blend)</a>
+    <a href="https://github.com/youngbrain85/white-oak-lake-dams-3d">Source on GitHub</a>
+  </div>
+
+  <figure class="hero">
+    <img src="renders/cycles/basin.png" alt="Cycles render of the stilling basin, baffle blocks and pedestrian truss bridge" width="1920" height="1080">
+    <figcaption>Stilling basin with the three baffle blocks and end sills, looking upstream toward the 46 ft steel truss bridge. Cycles, 1920×1080.</figcaption>
+  </figure>
+
+  <div class="grid">
+    <figure><img src="renders/cycles/weir.png" alt="Semicircular weir seen from Lake No. 1" loading="lazy"><figcaption>40 ft semicircular overflow weir (crest EL 477.0) from Lake No. 1.</figcaption></figure>
+    <figure><img src="renders/cycles/weir_low.png" alt="Weir crest at water level" loading="lazy"><figcaption>Weir crest at normal pool, riprap apron below the water line.</figcaption></figure>
+    <figure><img src="renders/cycles/bridge.png" alt="Bridge and spillway from the south-west lawn" loading="lazy"><figcaption>Bridge and spillway from the mown lawn south-west of the dam.</figcaption></figure>
+    <figure><img src="renders/cycles/bridge_deck.png" alt="On the bridge deck" loading="lazy"><figcaption>On the deck: 2×6 planks, weathering-steel truss, pickets.</figcaption></figure>
+    <figure><img src="renders/cycles/outlet.png" alt="Riprap outlet channel" loading="lazy"><figcaption>24 in. Class I riprap outlet channel, invert EL 470 → 466.</figcaption></figure>
+    <figure><img src="renders/cycles/walk.png" alt="Stone walkway approach" loading="lazy"><figcaption>Stone walkway and post-and-cable fence on the approach to the bridge.</figcaption></figure>
+    <figure><img src="renders/cycles/dam1.png" alt="Dam No. 1 embankment" loading="lazy"><figcaption>Dam No. 1 embankment, crest EL 480, 10:1 downstream slope.</figcaption></figure>
+    <figure><img src="renders/cycles/dam2.png" alt="Dam No. 2 and Lake No. 2" loading="lazy"><figcaption>Dam No. 2 (crest EL 495) with the paved access drive and Lake No. 2 at EL 490.4.</figcaption></figure>
+    <figure><img src="renders/cycles/aerial.png" alt="Aerial view of both lakes" loading="lazy"><figcaption>Aerial view of both lakes; terrain and tree cover from the 2005 aerial in the drawings.</figcaption></figure>
+  </div>
+
+  <section>
+    <h2>How it was built</h2>
+    <p>Everything in the scene is generated by <code>blender/build_scene.py</code> with Blender 5.2 as a Python module: the terrain from the 16-bit heightmap derived from the aerial and contour data, the spillway walls, slab, weir, baffles and bridge from the plan and section dimensions, 1,750 individually placed limestone rocks, 7,936 procedural trees with leaf-card canopies, 42,000 scattered grass clumps and a physically based Nishita sky. The interactive viewer loads the same scene exported to glTF (meshopt-compressed) and instances the trees and rocks on the GPU.</p>
+  </section>
+
+  <section>
+    <h2>Design data in the model</h2>
+    <div class="tbl"><table>
+      <tr><th>Element</th><th>Value</th><th>Sheets</th></tr>
+      <tr><td>Overflow weir</td><td>Semicircular, 20.5 ft inside radius, crest EL 477.0, 1 ft thick</td><td>7, 27, 29</td></tr>
+      <tr><td>Spillway walls</td><td>1 ft thick, top EL 480 → 477 → 476, bottom EL 466–467</td><td>27, 28, 29</td></tr>
+      <tr><td>Floor slab</td><td>24 / 18 / 12 in., EL 473.46 → 472.0 → 470.0, curved R 35.5 / 31.5 ft</td><td>27, 28</td></tr>
+      <tr><td>Baffle / end-sill blocks</td><td>3 baffles 3 ft 9 in. high; 6 end sills 2 × 2 × 1 ft 9 in.</td><td>27, 29, 30</td></tr>
+      <tr><td>Pedestrian bridge</td><td>46 ft clear span, 8 ft wide steel truss, deck EL 482.0</td><td>30</td></tr>
+      <tr><td>Outlet channel</td><td>24 in. Class I riprap, invert EL 470 → 466, 23 → 40 ft wide, 2:1 sides</td><td>10, 11</td></tr>
+      <tr><td>Dam No. 1 / No. 2</td><td>Crest EL 480 (10:1 downstream) / crest EL 495 (3:1), 48 in. CMP riser EL 490.31</td><td>12–24</td></tr>
+      <tr><td>Pool levels</td><td>Lake 1 EL 477.0 (lowered from 482.4), Lake 2 EL 490.4</td><td>7, 19</td></tr>
+    </table></div>
+  </section>
+
+  <footer>Drawings: Indiana Department of Natural Resources; Commonwealth Engineers, Inc.; KIVA Structural Engineers (2013). Terrain is interpolated from the aerial and spot elevations, not survey data; buried works are not modelled.</footer>
+</div>
+</body>
+</html>

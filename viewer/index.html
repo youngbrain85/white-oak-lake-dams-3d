@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>White Oak Lake Dam 3D</title>
-<meta name="description" content="Indiana DNR White Oak Lake Dams Rehabilitation (2013 bid set) – 3D reconstruction of the Dam No.1 drop spillway, pedestrian bridge and Dam No.2 from the construction drawings.">
+<meta name="description" content="Indiana DNR White Oak Lake Dams Rehabilitation (2013 bid set) – interactive viewer for the Blender-built 3D reconstruction of the Dam No.1 drop spillway, pedestrian bridge and Dam No.2.">
 <style>
   /* layout: full-bleed WebGL canvas, glass HUD pinned top-left, reference photos top-right, legend bottom-right (single dark look by choice) */
   :root { --bg:#0f141a; --panel:rgba(14,18,24,0.62); --fg:#e8edf2; --muted:#9aa6b2; --accent:#7fc1ff; --border:rgba(255,255,255,0.12); color-scheme: dark; }
-  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg); font:14px/1.45 -apple-system, "Segoe UI", "Malgun Gothic", Roboto, sans-serif; overflow:hidden; padding-left:max(0px, env(safe-area-inset-left, 0px)); padding-right:max(0px, env(safe-area-inset-right, 0px)); }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg); font:14px/1.45 -apple-system, "Segoe UI", "Malgun Gothic", Roboto, sans-serif; overflow:hidden; }
   canvas#c { display:block; width:100vw; height:100vh; }
   #hud { position:fixed; left:max(16px, env(safe-area-inset-left, 0px)); top:calc(16px + env(safe-area-inset-top, 0px)); max-width:min(380px, calc(100vw - 32px)); background:var(--panel); backdrop-filter:blur(8px); border:1px solid var(--border); border-radius:12px; padding:10px 14px 12px; opacity:0.85; transition:opacity .2s; }
   #hud:not(:hover):not(:focus-within) { opacity:0.72; }
@@ -24,10 +24,11 @@
   #hud.min #hudToggle { width:26px; height:26px; }
   #hud .sub { color:var(--muted); font-size:12px; margin-bottom:8px; }
   .views { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 8px; }
-  .views button, #btnExport { background:rgba(255,255,255,0.08); color:var(--fg); border:1px solid var(--border); border-radius:8px; padding:5px 9px; font-size:12px; cursor:pointer; }
-  .views button:hover, #btnExport:hover { background:rgba(127,193,255,0.25); border-color:var(--accent); }
+  .views button, .links a { background:rgba(255,255,255,0.08); color:var(--fg); border:1px solid var(--border); border-radius:8px; padding:5px 9px; font-size:12px; cursor:pointer; text-decoration:none; display:inline-block; }
+  .views button:hover, .links a:hover { background:rgba(127,193,255,0.25); border-color:var(--accent); }
   .toggles { display:flex; gap:12px; font-size:12px; color:var(--muted); margin-bottom:8px; }
   .toggles label { display:flex; gap:4px; align-items:center; cursor:pointer; }
+  .links { display:flex; flex-wrap:wrap; gap:6px; }
   #status { font-size:12px; color:var(--accent); min-height:16px; }
   #legend { position:fixed; right:max(16px, env(safe-area-inset-right, 0px)); bottom:calc(16px + env(safe-area-inset-bottom, 0px)); background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:10px 12px; font-size:12px; color:var(--muted); max-width:min(360px, calc(100vw - 32px)); }
   #legend b { color:var(--fg); }
@@ -55,7 +56,7 @@
     <button id="hudToggle" aria-label="Collapse menu" aria-expanded="true" title="Collapse / expand menu">&#x2212;</button>
   </div>
   <div class="body">
-  <div class="sub">IDNR Project E015001L · Knox County, Indiana · 2013 Bid Set (Sheets 1–30)</div>
+  <div class="sub">IDNR Project E015001L · Knox County, Indiana · 2013 Bid Set · Blender scene, real-time preview</div>
   <div class="views">
     <button data-view="bridge">Bridge &amp; Spillway</button>
     <button data-view="weir">Semicircular Weir</button>
@@ -68,12 +69,25 @@
   </div>
   <div class="toggles">
     <label><input type="checkbox" id="tgTrees" checked> Trees</label>
-    <label><input type="checkbox" id="tgGrass" checked> Grass</label>
-    <label><input type="checkbox" id="tgWater" checked> Lake 1 water</label>
+    <label><input type="checkbox" id="tgRocks" checked> Riprap rocks</label>
+    <label><input type="checkbox" id="tgWater" checked> Water</label>
   </div>
-  <button id="btnExport">Export GLB (Windows 3D Viewer / Blender)</button>
+  <div class="links">
+    <a href="../index.html">Cycles render gallery</a>
+    <a href="../model/white_oak_lake_dams_blender.glb" download>Download GLB (33 MB)</a>
+    <a href="../viewer-legacy/index.html">Procedural viewer (v1)</a>
+  </div>
   <div id="hint" style="font-size:11px;color:var(--muted);margin-top:6px">Drag: orbit · Wheel: zoom · Right-drag: pan</div>
   </div>
+</div>
+<div id="photos">
+  <div class="t">Existing-condition photos (sheet 6) – click to enlarge</div>
+  <img src="assets/photo1.jpg" alt="existing spillway walkway"><div class="cap">Existing timber walkway and concrete spillway walls slated for demolition (pre-2013)</div>
+  <img src="assets/photo2.jpg" alt="existing spillway walkway 2"><div class="cap">Existing outlet channel and timber walkway</div>
+  <img src="assets/photo3.jpg" alt="existing spillway walls"><div class="cap">Existing concrete walls, to be broken up and reused as the base of the new riprap channel</div>
+</div>
+<div id="legend">
+  <b>Design elements</b> — 40′ semicircular concrete overflow weir (crest EL 477.0 = normal pool), 1′ side walls (EL 480→476), 2′ floor slab (EL 474→470), 3 baffle blocks and 6 end-sill blocks, 46′ pre-engineered steel truss pedestrian bridge (deck EL 482), 42″ chain-link fence, 24″ Class I riprap outlet channel, Dam No. 1 crest EL 480 (10:1 downstream slope), Dam No. 2 crest EL 495 (3:1 slopes, paved access drive), Lake 1 EL 477 / Lake 2 EL 490.4. Geometry built in Blender from the drawings; terrain and vegetation from the 2005 aerial.
 </div>
 <script>
 (function () {
@@ -90,19 +104,9 @@
   }
   apply();
   btn.addEventListener('click', function () { min = !min; apply(); try { localStorage.setItem('hudMin', min ? '1' : '0'); } catch (e) {} });
-  // on small screens, collapse again after picking a camera view so the scene is unobstructed
   document.querySelectorAll('[data-view]').forEach(function (b) { b.addEventListener('click', function () { if (innerWidth < 700) { min = true; apply(); } }); });
 })();
 </script>
-<div id="photos">
-  <div class="t">Existing-condition photos (sheet 6) – click to enlarge</div>
-  <img src="assets/photo1.jpg" alt="existing spillway walkway"><div class="cap">Existing timber walkway and concrete spillway walls slated for demolition (pre-2013)</div>
-  <img src="assets/photo2.jpg" alt="existing spillway walkway 2"><div class="cap">Existing outlet channel and timber walkway</div>
-  <img src="assets/photo3.jpg" alt="existing spillway walls"><div class="cap">Existing concrete walls, to be broken up and reused as the base of the new riprap channel</div>
-</div>
-<div id="legend">
-  <b>Design elements</b> — 40′ semicircular concrete overflow weir (crest EL 477.0 = normal pool), 1′ side walls (EL 480→476), 2′ floor slab (EL 474→470), 3 baffle blocks and 6 end-sill blocks, 46′ pre-engineered steel truss pedestrian bridge (deck EL 482), 42″ chain-link fence, 24″ Class I riprap outlet channel, Dam No. 1 crest EL 480 (10:1 downstream slope), Dam No. 2 crest EL 495 (3:1 slopes, paved access drive), Lake 1 EL 477 / Lake 2 EL 490.4. Terrain and vegetation derived from the 2005 aerial and contours in the drawings.
-</div>
 <script>window.ASSET_BASE = 'assets/';</script>
 <script type="module" src="app.js"></script>
 </body>
