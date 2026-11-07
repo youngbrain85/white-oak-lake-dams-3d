@@ -994,6 +994,46 @@ def render(quality, names, outdir=None):
         t = time.time(); bpy.ops.render.render(write_still=True)
         print(f'{name}: {time.time() - t:.0f}s -> {sc.render.filepath}', flush=True)
 
+# ----------------------------------------------------------------------------- 360 panoramas (local frame x, y, eye height above ground / deck)
+PANOS = {
+    'bridge':  {'local': (12.0, 0.0), 'z': 482.0 + 5.5, 'look': (-1.0, 0.0), 'title': 'On the bridge'},
+    'walkway': {'local': (22.0, -40.0), 'z': None, 'look': (-0.3, 1.0), 'title': 'Stone walkway'},
+    'shore':   {'local': (-48.0, -52.0), 'z': None, 'look': (0.7, 0.7), 'title': 'Lake shore at the weir'},
+    'outlet':  {'local': (112.0, 44.0), 'z': 467.8 + 5.5, 'look': (-0.68, -0.73), 'title': 'Outlet channel'},
+    'crest':   {'local': (11.0, 140.0), 'z': None, 'look': (0.0, -1.0), 'title': 'Dam No. 1 crest'},
+    'dam2':    {'world': (-495.0, 71.0), 'z': 495.0 + 5.5, 'look_world': (1.0, 0.0), 'title': 'Dam No. 2 access drive'},
+}
+def pano_world(name):
+    p = PANOS[name]
+    if 'world' in p:
+        e, n = p['world']; fe, fn = p['look_world']
+    else:
+        e, n, _ = L2W(*p['local']); fe, fn, _ = L2W(*p['look']); fe -= 0; fn -= 0
+        fe, fn = fe - L2W(0, 0)[0], fn - L2W(0, 0)[1]
+    z = p['z'] if p['z'] is not None else terrain_h(e, n) + 5.5
+    l = math.hypot(fe, fn); return (e, n, z), (fe / l, fn / l)
+
+def render_panos(names, width=3072, samples=64, outdir=None):
+    bpy.ops.wm.open_mainfile(filepath=BLEND)
+    sc = bpy.context.scene
+    sc.render.resolution_x = width; sc.render.resolution_y = width // 2; sc.render.resolution_percentage = 100; sc.cycles.samples = samples
+    outdir = outdir or os.path.join(OUT, 'panos'); os.makedirs(outdir, exist_ok=True)
+    cd = bpy.data.cameras.new('PanoCam'); cd.type = 'PANO'; cd.panorama_type = 'EQUIRECTANGULAR'; cd.clip_end = 20000
+    cam = bpy.data.objects.new('PanoCam', cd); sc.collection.objects.link(cam); sc.camera = cam
+    mpath = os.path.join(outdir, 'panos.json')
+    meta = json.load(open(mpath)) if os.path.exists(mpath) else {}
+    for name in names:
+        if os.path.exists(os.path.join(outdir, name + '.png')) and name in meta:
+            print(f'pano {name}: exists, skipped', flush=True); continue
+        (e, n, z), (fe, fn) = pano_world(name)
+        cam.location = (e, n, z)
+        cam.rotation_euler = (Vector((fe, fn, 0)).to_track_quat('-Z', 'Y')).to_euler()
+        sc.render.filepath = os.path.join(outdir, name + '.png')
+        t = time.time(); bpy.ops.render.render(write_still=True)
+        meta[name] = {'pos': [e, n, z], 'forward': [fe, fn], 'title': PANOS[name]['title']}
+        json.dump(meta, open(mpath, 'w'), indent=1)
+        print(f'pano {name}: {time.time() - t:.0f}s', flush=True)
+
 def export_glb(path, lite=False):
     bpy.ops.wm.open_mainfile(filepath=BLEND)
     sc = bpy.context.scene
@@ -1050,7 +1090,9 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('--build', action='store_true'); ap.add_argument('--render', nargs='?', const='preview'); ap.add_argument('--export', nargs='?', const=os.path.join(ROOT, 'model', 'white_oak_lake_dams_blender.glb'))
     ap.add_argument('names', nargs='*'); ap.add_argument('--outdir'); ap.add_argument('--lite', action='store_true')
+    ap.add_argument('--pano', action='store_true'); ap.add_argument('--width', type=int, default=3072); ap.add_argument('--samples', type=int, default=64)
     a = ap.parse_args()
     if a.build: build()
     if a.render: render(a.render, a.names or list(PRESETS.keys()), a.outdir)
+    if a.pano: render_panos(a.names or list(PANOS.keys()), a.width, a.samples, a.outdir)
     if a.export: export_glb(a.export, a.lite)
