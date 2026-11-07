@@ -324,12 +324,22 @@ def make_materials():
 # ----------------------------------------------------------------------------- terrain / water
 BOX = None
 def make_box_mask():
-    from PIL import ImageDraw, ImageFilter
+    """mask of the spillway box bounded by the walls' OUTER faces (no dilation); terrain faces whose
+    centre falls inside are dropped, so the terrain reaches into the wall thickness but never past
+    the inner face, and there is no slot along the outside of the walls."""
+    from PIL import ImageDraw
     left, left_wing, right, right_wing = wall_polylines()
-    poly = [(p[0], p[1]) for p in right] + [(p[0], p[1]) for p in left][::-1] + arc(0, 0, 20.5, 90 * D, 270 * D, 48)[::-1]
+    def offset(pts, sign, thick=1.0):
+        out = []
+        for i, p in enumerate(pts):
+            a = pts[max(0, i - 1)]; b = pts[min(len(pts) - 1, i + 1)]
+            tx, ty = b[0] - a[0], b[1] - a[1]; l = math.hypot(tx, ty) or 1; tx /= l; ty /= l
+            out.append((p[0] - ty * sign * thick, p[1] + tx * sign * thick))
+        return out
+    weir_pts = [(x, y, 477) for x, y in arc(0, 0, 20.5, 90 * D, 270 * D, 48)]
+    poly = offset(right, +1) + offset(left, -1)[::-1] + offset(weir_pts, -1)[::-1]
     im = Image.new('L', (2400, 2400), 0)
     ImageDraw.Draw(im).polygon([(L2W(x, y)[0] + 1200, 1200 - L2W(x, y)[1]) for x, y in poly], fill=255)
-    im = im.filter(ImageFilter.MaxFilter(5))
     return np.asarray(im) > 127
 
 def build_terrain(M):
@@ -357,10 +367,9 @@ def build_terrain(M):
         F = np.stack([a.ravel(), d.ravel(), c.ravel(), b.ravel()], 1)   # CCW seen from above
         # masks
         px = np.clip(np.round(E + 1200).astype(int), 0, 2399); py = np.clip(np.round(1200 - N).astype(int), 0, 2399)
-        boxv = BOX[py, px].ravel()
         cxe = (Vv[F[:, 0], 0] + Vv[F[:, 2], 0]) / 2; cyn = (Vv[F[:, 0], 1] + Vv[F[:, 2], 1]) / 2
         pcx = np.clip(np.round(cxe + 1200).astype(int), 0, 2399); pcy = np.clip(np.round(1200 - cyn).astype(int), 0, 2399)
-        keep = ~CUT[pcy, pcx] & ~(boxv[F[:, 0]] | boxv[F[:, 1]] | boxv[F[:, 2]] | boxv[F[:, 3]])
+        keep = ~CUT[pcy, pcx] & ~BOX[pcy, pcx]
         if skip_inner is not None:
             ins = ((np.abs(E) < skip_inner) & (np.abs(N) < skip_inner)).ravel()
             keep &= ~(ins[F[:, 0]] & ins[F[:, 1]] & ins[F[:, 2]] & ins[F[:, 3]])

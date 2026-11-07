@@ -119,8 +119,8 @@ function tuneMaterials(root) {
     else if (n === 'ChainLink') { m.transparent = false; m.alphaTest = 0.4; m.side = THREE.DoubleSide; m.metalness = 0.8; m.roughness = 0.45; }
     else if (n.startsWith('Water')) {
       m.transparent = false; m.alphaTest = 0.5; m.depthWrite = true;
-      m.color.setRGB(0.07, 0.12, 0.08); m.roughness = 0.2; m.metalness = 0.0; m.envMapIntensity = 0.9;
-      m.normalMap = waterN; m.normalScale = new THREE.Vector2(0.3, 0.3); m.clearcoat = 0.25; m.clearcoatRoughness = 0.15;
+      m.color.setRGB(0.07, 0.12, 0.08); m.roughness = 0.42; m.metalness = 0.0; m.envMapIntensity = 0.7;
+      m.normalMap = waterN; m.normalScale = new THREE.Vector2(0.35, 0.35); m.clearcoat = 0.0; m.specularIntensity = 0.6;
       m.userData.water = true;
     }
     else if (n === 'Terrain') { m.roughness = 1.0; m.envMapIntensity = 0.25; m.color.setRGB(0.78, 0.82, 0.72); }
