@@ -322,7 +322,19 @@ def make_materials():
     return M
 
 # ----------------------------------------------------------------------------- terrain / water
+BOX = None
+def make_box_mask():
+    from PIL import ImageDraw, ImageFilter
+    left, left_wing, right, right_wing = wall_polylines()
+    poly = [(p[0], p[1]) for p in right] + [(p[0], p[1]) for p in left][::-1] + arc(0, 0, 20.5, 90 * D, 270 * D, 48)[::-1]
+    im = Image.new('L', (2400, 2400), 0)
+    ImageDraw.Draw(im).polygon([(L2W(x, y)[0] + 1200, 1200 - L2W(x, y)[1]) for x, y in poly], fill=255)
+    im = im.filter(ImageFilter.MaxFilter(5))
+    return np.asarray(im) > 127
+
 def build_terrain(M):
+    global BOX
+    BOX = make_box_mask()
     half = HEXT / 2
     def grid(step, lo, hi, skip_inner=None, name='Terrain', smooth_sigma=0.0):
         xs = np.arange(lo, hi + 1e-6, step); ys = np.arange(hi, lo - 1e-6, -step)
@@ -345,8 +357,10 @@ def build_terrain(M):
         F = np.stack([a.ravel(), d.ravel(), c.ravel(), b.ravel()], 1)   # CCW seen from above
         # masks
         px = np.clip(np.round(E + 1200).astype(int), 0, 2399); py = np.clip(np.round(1200 - N).astype(int), 0, 2399)
-        cutv = CUT[py, px].ravel()
-        keep = ~(cutv[F[:, 0]] | cutv[F[:, 1]] | cutv[F[:, 2]] | cutv[F[:, 3]])
+        boxv = BOX[py, px].ravel()
+        cxe = (Vv[F[:, 0], 0] + Vv[F[:, 2], 0]) / 2; cyn = (Vv[F[:, 0], 1] + Vv[F[:, 2], 1]) / 2
+        pcx = np.clip(np.round(cxe + 1200).astype(int), 0, 2399); pcy = np.clip(np.round(1200 - cyn).astype(int), 0, 2399)
+        keep = ~CUT[pcy, pcx] & ~(boxv[F[:, 0]] | boxv[F[:, 1]] | boxv[F[:, 2]] | boxv[F[:, 3]])
         if skip_inner is not None:
             ins = ((np.abs(E) < skip_inner) & (np.abs(N) < skip_inner)).ravel()
             keep &= ~(ins[F[:, 0]] & ins[F[:, 1]] & ins[F[:, 2]] & ins[F[:, 3]])
@@ -612,7 +626,7 @@ def build_weir_riprap(M):
     NR, NA = 12, 64; V = []; F = []
     for j in range(NR + 1):
         for i in range(NA + 1):
-            r = 21.0 + (40.5 - 21.0) * j / NR; a = (86 + 188 * i / NA) * D
+            r = 21.0 + (40.5 - 21.0) * j / NR; a = (80 + 200 * i / NA) * D
             x = r * math.cos(a); y = r * math.sin(a)
             z = 475.6 - (r - 21.0) * 0.5
             th = terrain_h_local(x, y)
