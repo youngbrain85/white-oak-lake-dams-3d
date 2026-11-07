@@ -220,9 +220,12 @@ blend = blend * blend * (3 - 2 * blend)
 cur = H[idx]
 # upstream of weir (lake side) the ground is lake bed/riprap, do not pull it up to 477
 rr = np.hypot(px, py)
-upstream = (px < 0) & (rr > 20.5)
+# upstream face of the embankment beside / in front of the weir: 3:1 from the crest edge (x = +5, EL 480)
+# down to the lake bed, blended back into the existing bed beyond r = 66 ft
+upstream = (px < 5) & (rr > 20.5)
 feather = np.clip((rr - 36.0) / 30.0, 0, 1)
-ups_target = np.minimum(cur, 477.0 - np.clip((rr - 21) / 2.0, 0, 8))
+slope_z = 480.0 - (5.0 - px) / 3.0
+ups_target = np.minimum(cur, np.maximum(slope_z, 465.0))
 ups_target = ups_target * (1 - feather) + cur * feather
 target = np.where(upstream, ups_target, best_z)
 H[idx] = np.where(upstream, target, cur * (1 - blend) + target * blend)
@@ -253,9 +256,24 @@ H = np.where(sw, np.minimum(H, swz), H)
 
 # stone walkway from SW bridge abutment up to access drive: 8' wide, from (52,-24) heading -y, climbing 482->490 over 60 ft
 # (handled by geometry in JS; terrain gets a gentle ramp here)
-ramp = (LX > 44) & (LX < 60) & (LY < -22) & (LY > -95)
-rz = 482.0 + np.clip((-LY - 24) / 60.0, 0, 1) * 8.0
-H = np.where(ramp, np.where(H < rz, rz, np.minimum(H, rz + 0.5)), H)
+# approach ramps under the stone walkway (SW) and the crest approach (NE), both starting at the bridge deck (482)
+def polyline_ramp(H, pts, z0, z1, halfw=7.0):
+    segs = list(zip(pts[:-1], pts[1:])); L = sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in segs)
+    best_d = np.full(H.shape, 1e9, np.float32); best_s = np.zeros(H.shape, np.float32); acc = 0.0
+    for a, b in segs:
+        vx, vy = b[0] - a[0], b[1] - a[1]; seg = math.hypot(vx, vy)
+        tt = np.clip(((LX - a[0]) * vx + (LY - a[1]) * vy) / max(seg * seg, 1e-6), 0, 1)
+        d = np.hypot(LX - (a[0] + tt * vx), LY - (a[1] + tt * vy))
+        m = d < best_d; best_d[m] = d[m]; best_s[m] = (acc + tt * seg)[m]; acc += seg
+    f = np.clip(best_s / L, 0, 1); f = f * f * (3 - 2 * f)
+    target = z0 + (z1 - z0) * f
+    inr = best_d < halfw
+    return np.where(inr, np.where(H < target, target, np.minimum(H, target + 0.6)), H)
+WALK_SW = [(12, -24.5), (12, -38)] + [(52 - 40 * math.cos(math.radians(a)), -38 - 40 * math.sin(math.radians(a))) for a in range(6, 55, 6)]
+_e, _n = WALK_SW[-1][0] * U[0] + WALK_SW[-1][1] * V[0], WALK_SW[-1][0] * U[1] + WALK_SW[-1][1] * V[1]
+_z_end = float(H[int(round(EXT / 2 - _n)), int(round(EXT / 2 + _e))])
+H = polyline_ramp(H, WALK_SW, 482.0, _z_end)
+H = polyline_ramp(H, [(12, 24.5), (12, 48)], 482.0, 480.0)
 
 # ------------------------------------------------------------------ smoothing
 from scipy import ndimage as _nd
@@ -273,7 +291,6 @@ dr.polygon([to_px(x, y) for (x, y) in box_poly], fill=255)
 # riprap ring around weir (upstream) and channel footprint
 cut_np = np.asarray(cut).copy()
 ring = (LX < 2) & (np.hypot(LX, LY) < 36.5)
-cut_np[ring] = 255
 cut_np[chan & (np.abs(oy) < half_w + 16.5)] = 255
 Image.fromarray(cut_np).save(os.path.join(OUT, 'cutmask.png'))
 
@@ -284,6 +301,7 @@ h16 = np.clip((H - HMIN) / (HMAX - HMIN) * 65535, 0, 65535).astype(np.uint16)
 H2 = np.asarray(Image.fromarray(H.astype(np.float32), 'F').resize((EXT // 2 + 1, EXT // 2 + 1), Image.BILINEAR))
 h16 = np.clip((H2 - HMIN) / (HMAX - HMIN) * 65535, 0, 65535).astype('<u2')
 h16.tofile(os.path.join(OUT, 'height.u16'))
+Image.fromarray(np.stack([(h16 >> 8).astype(np.uint8), (h16 & 255).astype(np.uint8), np.zeros_like(h16, dtype=np.uint8)], -1), 'RGB').save(os.path.join(OUT, 'height.png'), optimize=True)
 with open(os.path.join(OUT, 'height.json'), 'w') as f:
     json.dump({'size': EXT // 2 + 1, 'spacing': 2.0, 'extent': EXT, 'hmin': HMIN, 'hmax': HMAX}, f)
 

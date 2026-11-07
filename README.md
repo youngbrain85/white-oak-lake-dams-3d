@@ -56,7 +56,7 @@ Serve `viewer/` over HTTP (`python -m http.server 8000` in the repository root, 
 * **Lakes** – masked water planes at EL 476.6 and 490.4 with a glossy, slightly murky shader and procedural ripples.
 * **Dam No. 1 spillway** – left/right walls and wing walls from the plan polylines (1 ft thick, bottoms at EL 466), 20.5 ft semicircular weir, half-disk + ribbon slab following the longitudinal profile, 3 baffle blocks, 6 end-sill blocks, bridge abutments, 42 in. chain-link on the wall tops, riprap apron and outlet channel with 1,750 individually placed rocks.
 * **Bridge** – 46 ft × 8 ft steel truss with chords, posts, diagonals, pickets, handrails, three stringers and 2×6 plank deck.
-* **Site** – gravel walkway, post-and-cable fences, Dam No. 2 crest road, posts, 48 in. CMP riser with grate, toe-drain outlets.
+* **Site** – 8 ft stone walkway from the bridge (on the Dam No. 1 centreline, sta 30+56) round an R = 40 ft bend to the existing asphalt access drive, the mown track along the regraded dam crest on the far side, both asphalt drives traced from the 2005 aerial, post-and-cable fences, Dam No. 2 crest road, posts, 48 in. CMP riser with grate, toe-drain outlets.
 * **Vegetation** – three procedural broadleaf tree variants (trunk, two branch levels, 340 leaf cards each) instanced at the 7,936 positions classified from the aerial, with per-instance hue variation; 42,000 grass clumps scattered near the spillway with a density vertex group.
 * **Lighting** – Nishita (multiple-scattering) sky, sun elevation 34°, AgX view transform.
 

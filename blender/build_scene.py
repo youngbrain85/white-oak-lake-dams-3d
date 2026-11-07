@@ -287,6 +287,7 @@ def make_materials():
         M[f'leaf{i}'] = pbr(f'Leaves{i}', os.path.join(TEX, f'leafcard{i}.png'), rough=0.55, alpha_from_albedo=True, translucent=0.3, spec_ior=1.4, instance_var=1.0)
     M['grass_clump'] = pbr('GrassClump', os.path.join(TEX, 'grassclump.png'), rough=0.8, alpha_from_albedo=True, translucent=0.1, tint=(0.55, 0.72, 0.42, 1))
     M['mud'] = pbr('Mud', color=(0.32, 0.27, 0.19, 1), rough=0.75)
+    M['track'] = pbr('MownTrack', os.path.join(ASSETS, 'gravel.jpg'), os.path.join(ASSETS, 'gravel_n.jpg'), rough=0.95, nstrength=0.4, tint=(0.62, 0.66, 0.45, 1))
     # terrain
     m = pbr('Terrain', os.path.join(ASSETS, 'albedo.jpg'), os.path.join(TEX, 'grass_n.jpg'), rough=0.95, nstrength=0.35,
             detail=os.path.join(TEX, 'grass_detail.jpg'), detail_scale=260.0, tint=(1.0, 1.0, 1.0, 1), slope_soil=True, desat=(0.72, 0.85))
@@ -396,6 +397,20 @@ def build_terrain(M):
 def arc(cx, cy, r, a0, a1, n):
     return [(cx + r * math.cos(a0 + (a1 - a0) * i / n), cy + r * math.sin(a0 + (a1 - a0) * i / n)) for i in range(n + 1)]
 D = math.pi / 180
+BX0, BX1 = 8.0, 16.0            # pedestrian bridge (8 ft wide) centred on the Dam No.1 centreline, sta 30+56
+WALK_SW = [(12, -24.5), (12, -38)] + [(52 - 40 * math.cos(math.radians(a)), -38 - 40 * math.sin(math.radians(a))) for a in range(6, 55, 6)]
+DRIVE1 = [(-230, -190), (-140, -150), (-70, -123), (0, -95), (40, -62), (80, -34), (116, -23)]       # existing asphalt access drive (from the 2005 aerial)
+DRIVE2 = [(-90, -305), (-20, -255), (20, -243), (60, -232), (100, -207), (140, -199), (250, -190), (410, -178)]  # lake access drive
+CREST = [(12, 24.5), (12, 48), (11.5, 120), (11, 300), (11, 560)]                                   # mown track along the Dam No.1 crest
+def dist_to_polyline(x, y, pts):
+    best = 1e9
+    for a, b in zip(pts[:-1], pts[1:]):
+        vx, vy = b[0] - a[0], b[1] - a[1]; L2 = vx * vx + vy * vy or 1e-6
+        t = max(0.0, min(1.0, ((x - a[0]) * vx + (y - a[1]) * vy) / L2))
+        best = min(best, math.hypot(x - a[0] - t * vx, y - a[1] - t * vy))
+    return best
+def dist_to_drives(x, y):
+    return min(dist_to_polyline(x, y, DRIVE1), dist_to_polyline(x, y, DRIVE2))
 
 def slab_elev(x, y):
     if x < 0: return 473.46 + 0.54 * min(1.0, -x / 20.5)
@@ -485,11 +500,11 @@ def build_spillway(M):
     mesh_from_arrays('Slab', V, F, UV, 'Structures', M['concrete_slab'])
     # baffle blocks
     for yc in (-11.3, 0.0, 11.3):
-        z0 = slab_elev(60, yc) - 0.02
+        z0 = slab_elev(50, yc) - 0.02
         prof = [(60, yc - 2.5), (62.8, yc - 2.5), (62.8, yc + 2.5), (60, yc + 2.5)]
         # trapezoid in x-z: build as two solids: lower box 2.8 wide, upper slope approximated by 3 slices
         Vb = []; Fb = []
-        for (x0, x1, zz) in ((60, 62.8, 0), (60, 61.6, 2.0), (60, 60.75, 3.75)):
+        for (x0, x1, zz) in ((50, 52.8, 0), (50, 51.6, 2.0), (50, 50.75, 3.75)):
             Vb += [L2W(x0, yc - 2.5, z0 + zz), L2W(x1, yc - 2.5, z0 + zz), L2W(x1, yc + 2.5, z0 + zz), L2W(x0, yc + 2.5, z0 + zz)]
         for k in range(2):
             a = k * 4; b = a + 4
@@ -510,20 +525,20 @@ def build_spillway(M):
         solid_from_profile(f'EndSill_{i}', corners, 469.6, 471.75, 'Structures', M['concrete'])
     # bridge abutments behind the walls
     for sgn in (-1, 1):
-        corners = [L2W(46, sgn * 23 - 1.5)[:2], L2W(58, sgn * 23 - 1.5)[:2], L2W(58, sgn * 23 + 1.5)[:2], L2W(46, sgn * 23 + 1.5)[:2]]
-        solid_from_profile(f'Abutment_{sgn:+d}', corners, 475.0, 481.0, 'Structures', M['concrete'])
+        corners = [L2W(BX0 - 2, sgn * 23 - 1.5)[:2], L2W(BX1 + 2, sgn * 23 - 1.5)[:2], L2W(BX1 + 2, sgn * 23 + 1.5)[:2], L2W(BX0 - 2, sgn * 23 + 1.5)[:2]]
+        solid_from_profile(f'Abutment_{sgn:+d}', corners, 475.0, 481.75, 'Structures', M['concrete'])
     build_bridge(M)
-    fenceL = [(p[0], p[1] - 0.5, p[2]) for p in left if p[0] >= 57.5] + [(100.5, 8.5, 476), (105.9, 4.2, 476)]
-    fenceR = [(p[0], p[1] + 0.5, p[2]) for p in right if p[0] >= 57.5] + [(76.3, 32.6, 476), (72.4, 36.8, 476)]
+    fenceL = [(p[0], p[1] - 0.5, p[2]) for p in left if p[0] >= 19.5] + [(100.5, 8.5, 476), (105.9, 4.2, 476)]
+    fenceR = [(p[0], p[1] + 0.5, p[2]) for p in right if p[0] >= 19.5] + [(76.3, 32.6, 476), (72.4, 36.8, 476)]
     build_chainlink('FenceLeft', fenceL, M); build_chainlink('FenceRight', fenceR, M)
     build_outlet_channel(M)
     build_weir_riprap(M)
     build_walkway(M)
-    for i, line in enumerate(([(47.0, -25.5), (47.0, -46.5)], [(57.0, -25.5), (57.0, -46.5)], [(58.5, 25.5), (58.5, 46.5)], [(60.0, -25.0), (81.0, -25.0)])):
+    for i, line in enumerate(([(7.0, -25.5), (7.0, -46.5)], [(17.0, -25.5), (17.0, -46.5)], [(6.0, 25.5), (6.0, 46.5)], [(16.0, 25.5), (16.0, 46.5)], [(60.0, -25.0), (81.0, -25.0)])):
         build_post_cable(f'PostCable{i}', line, M)
 
 def build_bridge(M):
-    x0, x1, yA, yB = 48.0, 56.0, -23.5, 23.5
+    x0, x1, yA, yB = BX0, BX1, -23.5, 23.5
     deck, bot, top = 482.0, 481.6, 485.6
     # deck planks: 2x6 across the bridge, laid along y, 0.46' wide with 1/4" gaps
     V = []; F = []; y = yA
@@ -637,9 +652,8 @@ def build_weir_riprap(M):
         for i in range(NA + 1):
             r = 21.0 + (40.5 - 21.0) * j / NR; a = (80 + 200 * i / NA) * D
             x = r * math.cos(a); y = r * math.sin(a)
-            z = 475.6 - (r - 21.0) * 0.5
             th = terrain_h_local(x, y)
-            if r > 36.0: z = th - 0.05
+            z = th + 0.3 if th < 477.6 else th - 0.4      # riprap apron only below the water line
             z += 0.25 * math.sin(x * 2.1) * math.cos(y * 1.7)
             V.append(L2W(x, y, z))
     for j in range(NR):
@@ -651,7 +665,9 @@ def build_weir_riprap(M):
     for _ in range(650):
         r = 21.8 + rng.random() * 14.0; a = (88 + rng.random() * 184) * D
         x = r * math.cos(a); y = r * math.sin(a)
-        z = 475.6 - (r - 21.0) * 0.5
+        th = terrain_h_local(x, y)
+        if th > 477.2: continue
+        z = th + 0.2
         s = 0.45 + rng.random() ** 1.5 * 0.9
         place_rock(rocks[k % len(rocks)], L2W(x, y, z + s * 0.2), s, rng, f'WRock_{k}'); k += 1
 
@@ -689,28 +705,40 @@ def place_rock(me, loc, s, rng, name):
     ob.rotation_euler = (rng.uniform(0, 6.28), rng.uniform(0, 6.28), rng.uniform(0, 6.28))
     return ob
 
-def build_walkway(M):
-    center = []
-    z = -24.5
-    while z >= -60: center.append((52, z)); z -= 2
-    cx, cz = 12, -60
-    for a in range(0, 91, 6):
-        r = a * D; center.append((cx + 40 * math.cos(r), cz - 40 * math.sin(r)))
-    for k in range(1, 9): center.append((12 - k * 3, -100))
-    V = []; F = []; s = 0
-    for i, p in enumerate(center):
-        a = center[max(0, i - 1)]; b = center[min(len(center) - 1, i + 1)]
+def ribbon(name, center, width, mat, col='Structures', lift=0.25, uvscale=0.25, zfun=None):
+    """ground-conforming strip along a local-frame polyline (resampled every ~2 ft)."""
+    pts = []
+    for a, b in zip(center[:-1], center[1:]):
+        seg = math.hypot(b[0] - a[0], b[1] - a[1]); n = max(1, int(seg / 2))
+        for k in range(n): t = k / n; pts.append((a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t))
+    pts.append(center[-1])
+    V = []; F = []; UV = []; s = 0
+    for i, p in enumerate(pts):
+        a = pts[max(0, i - 1)]; b = pts[min(len(pts) - 1, i + 1)]
         tx, ty = b[0] - a[0], b[1] - a[1]; l = math.hypot(tx, ty) or 1; tx /= l; ty /= l
         nx, ny = -ty, tx
         if i > 0: s += math.hypot(p[0] - a[0], p[1] - a[1])
-        for w in (-4.5, 4.5):
+        for w in (-width / 2, width / 2):
             x = p[0] + nx * w; y = p[1] + ny * w
-            zz = terrain_h_local(x, y) + 0.25
-            if p[1] > -26: zz = max(zz, 482.0)
-            V.append(L2W(x, y, zz))
-    for i in range(len(center) - 1):
+            z = terrain_h_local(x, y) + lift
+            if zfun is not None: z = zfun(x, y, s, z)
+            V.append(L2W(x, y, z)); UV.append((w * uvscale, s * uvscale))
+    for i in range(len(pts) - 1):
         a = i * 2; F.append([a, a + 1, a + 3, a + 2])
-    mesh_from_arrays('Walkway', V, F, box_uv(V, F, 0.25), 'Structures', M['gravel'], smooth=True)
+    UVl = [UV[v] for f in F for v in f]
+    ob = mesh_from_arrays(name, V, F, UVl, col, mat, smooth=True)
+    return ob
+
+def build_walkway(M):
+    G = bpy.data.collections.get('Structures')
+    # 8 ft stone walkway: bridge SW end -> R=40 ft bend -> existing asphalt access drive (sheets 7, 11)
+    ribbon('Walkway', WALK_SW, 9.0, M['gravel'], zfun=lambda x, y, s, z: max(z, 482.0) if s < 2 else z)
+    # bridge NE end: short gravel approach down to the regraded crest (EL 480), then the mown crest track
+    ribbon('CrestApproach', [(12, 24.5), (12, 48)], 9.0, M['gravel'], zfun=lambda x, y, s, z: max(z, 482.0 - 2.0 * min(1.0, s / 22.0)))
+    ribbon('CrestTrack', CREST[1:], 6.0, M['track'], lift=0.12)
+    # existing asphalt drives (positions from the 2005 aerial in the bid set)
+    ribbon('AccessDrive', DRIVE1, 14.0, M['asphalt'], lift=0.15, uvscale=0.1)
+    ribbon('LakeAccessDrive', DRIVE2, 14.0, M['asphalt'], lift=0.15, uvscale=0.1)
 
 def build_post_cable(name, line, M):
     (ax, ay), (bx, by) = line; L = math.hypot(bx - ax, by - ay); n = max(1, round(L / 7))
@@ -718,7 +746,7 @@ def build_post_cable(name, line, M):
     for i in range(n + 1):
         t = i / n; x = ax + (bx - ax) * t; y = ay + (by - ay) * t
         z = terrain_h_local(x, y)
-        if abs(y) < 27 and 44 < x < 60: z = max(z, 481.9)
+        if abs(y) < 27 and BX0 - 4 < x < BX1 + 4: z = max(z, 481.9)
         corners = [L2W(x - 0.25, y - 0.25)[:2], L2W(x + 0.25, y - 0.25)[:2], L2W(x + 0.25, y + 0.25)[:2], L2W(x - 0.25, y + 0.25)[:2]]
         solid_from_profile(f'{name}_post{i}', corners, z - 0.3, z + 3.6, 'Fence', M['wood_post'], uvscale=0.3)
         tops.append((x, y, z))
@@ -861,10 +889,11 @@ def build_grass(M, terrain_inner, Vi, Fi):
         if z < 477.4: continue
         if in_mask(CUT, e, n) or in_mask(W1, e, n): continue
         if math.hypot(lx, ly) < 41 and lx < 3: continue
-        if 44 < lx < 60 and -27 < ly < 27: continue        # bridge / abutments
+        if BX0 - 4 < lx < BX1 + 4 and -27 < ly < 27: continue        # bridge / abutments
+        if dist_to_drives(lx, ly) < 9.0: continue
         w = 1.0
         # thin out the mown lawn SW of the spillway and the stone walkway
-        if ly < -24 and 46 < lx < 58 and ly > -62: w = 0.05
+        if ly < -24 and BX0 - 2 < lx < BX1 + 2 and ly > -40: w = 0.05
         if ly < -40 and lx < 60: w = 0.35
         d = max(abs(lx) / 190, abs(ly) / 190); w *= max(0.0, 1.0 - max(0.0, d - 0.6) / 0.4)
         if w > 0.02: idx.append(i); wts.append(w)
@@ -886,12 +915,12 @@ PRESETS = {  # three.js world (x east, y up, z south) -> blender (x, -z, y)
     'weir':   ([55, 489, 40], [-5, 476, -8]),
     'basin':  ([-120, 492, -75], [-60, 474, -10]),
     'outlet': ([-128, 481, -65], [-82, 473, -42]),
-    'walk':   ([-70, 497, 110], [-50, 481, 0]),
+    'walk':   ([-60.5, 492, 71.9], [-14.2, 482, 6.6]),
     'dam1':   ([330, 545, -120], [40, 480, -330]),
     'dam2':   ([-880, 560, -150], [-480, 493, -62]),
     'aerial': ([-350, 1150, 950], [-100, 478, -100]),
     'weir_low': ([70, 480.5, 15], [-12, 476.5, -2]),
-    'bridge_deck': ([-57, 487.5, -12], [-40, 480, 60]),
+    'bridge_deck': ([-17.2, 487.5, 18.2], [-1.3, 481, -41.8]),
 }
 def t2b(p): return Vector((p[0], -p[2], p[1]))
 
