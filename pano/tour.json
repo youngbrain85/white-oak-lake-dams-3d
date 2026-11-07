@@ -1,1 +1,200 @@
-{"scenes": []}
+{
+ "scenes": [
+  {
+   "id": "bridge",
+   "title": "On the bridge",
+   "desc": "Mid-span on the 46 ft steel truss bridge (deck EL 482): weir and Lake No. 1 ahead, stilling basin below, dam crest to the left, stone walkway to the right.",
+   "image": "bridge.jpg",
+   "image_small": "bridge_s.jpg",
+   "pos": [
+    -11.6,
+    3.1,
+    487.5
+   ],
+   "hotspots": [
+    {
+     "to": "walkway",
+     "u": 0.789,
+     "v": 0.5082,
+     "dist_ft": 41,
+     "label": "Stone walkway"
+    },
+    {
+     "to": "shore",
+     "u": 0.6137,
+     "v": 0.5142,
+     "dist_ft": 79,
+     "label": "Lake shore at the weir"
+    },
+    {
+     "to": "outlet",
+     "u": 0.066,
+     "v": 0.4589,
+     "dist_ft": 109,
+     "label": "Outlet channel"
+    },
+    {
+     "to": "crest",
+     "u": 0.2511,
+     "v": 0.4955,
+     "dist_ft": 140,
+     "label": "Dam No. 1 crest"
+    }
+   ]
+  },
+  {
+   "id": "walkway",
+   "title": "Stone walkway",
+   "desc": "On the 8 ft stone walkway where it leaves the bridge and bends toward the asphalt access drive.",
+   "image": "walkway.jpg",
+   "image_small": "walkway_s.jpg",
+   "pos": [
+    -31.5,
+    -33.0,
+    488.6
+   ],
+   "hotspots": [
+    {
+     "to": "bridge",
+     "u": 0.4926,
+     "v": 0.4918,
+     "dist_ft": 41,
+     "label": "On the bridge"
+    },
+    {
+     "to": "shore",
+     "u": 0.7306,
+     "v": 0.5111,
+     "dist_ft": 71,
+     "label": "Lake shore at the weir"
+    },
+    {
+     "to": "outlet",
+     "u": 0.3231,
+     "v": 0.4607,
+     "dist_ft": 123,
+     "label": "Outlet channel"
+    }
+   ]
+  },
+  {
+   "id": "shore",
+   "title": "Lake shore at the weir",
+   "desc": "Lake No. 1 shoreline south-west of the weir, looking across the water at the semicircular overflow crest (EL 477.0).",
+   "image": "shore.jpg",
+   "image_small": "shore_s.jpg",
+   "pos": [
+    33.1,
+    -62.6,
+    491.0
+   ],
+   "hotspots": [
+    {
+     "to": "bridge",
+     "u": 0.4887,
+     "v": 0.4858,
+     "dist_ft": 79,
+     "label": "On the bridge"
+    },
+    {
+     "to": "walkway",
+     "u": 0.402,
+     "v": 0.4889,
+     "dist_ft": 71,
+     "label": "Stone walkway"
+    },
+    {
+     "to": "dam2",
+     "u": 0.3732,
+     "v": 0.5055,
+     "dist_ft": 545,
+     "label": "Dam No. 2 access drive"
+    }
+   ]
+  },
+  {
+   "id": "outlet",
+   "title": "Outlet channel",
+   "desc": "Standing in the riprap outlet channel (24 in. Class I riprap on broken concrete) looking back up at the end sills and baffles.",
+   "image": "outlet.jpg",
+   "image_small": "outlet_s.jpg",
+   "pos": [
+    -97.0,
+    71.2,
+    473.3
+   ],
+   "hotspots": [
+    {
+     "to": "bridge",
+     "u": 0.4353,
+     "v": 0.5411,
+     "dist_ft": 109,
+     "label": "On the bridge"
+    },
+    {
+     "to": "walkway",
+     "u": 0.4889,
+     "v": 0.5393,
+     "dist_ft": 123,
+     "label": "Stone walkway"
+    }
+   ]
+  },
+  {
+   "id": "crest",
+   "title": "Dam No. 1 crest",
+   "desc": "On the regraded crest of Dam No. 1 (EL 480), 130 ft north-east of the bridge.",
+   "image": "crest.jpg",
+   "image_small": "crest_s.jpg",
+   "pos": [
+    25.2,
+    138.1,
+    485.5
+   ],
+   "hotspots": [
+    {
+     "to": "bridge",
+     "u": 0.5011,
+     "v": 0.5045,
+     "dist_ft": 140,
+     "label": "On the bridge"
+    },
+    {
+     "to": "dam2",
+     "u": 0.6883,
+     "v": 0.5091,
+     "dist_ft": 525,
+     "label": "Dam No. 2 access drive"
+    }
+   ]
+  },
+  {
+   "id": "dam2",
+   "title": "Dam No. 2 access drive",
+   "desc": "On the paved access drive along the crest of Dam No. 2 (EL 495), Lake No. 2 to the south.",
+   "image": "dam2.jpg",
+   "image_small": "dam2_s.jpg",
+   "pos": [
+    -495.0,
+    71.0,
+    500.5
+   ],
+   "hotspots": [
+    {
+     "to": "shore",
+     "u": 0.5394,
+     "v": 0.4945,
+     "dist_ft": 545,
+     "label": "Lake shore at the weir"
+    },
+    {
+     "to": "crest",
+     "u": 0.4796,
+     "v": 0.4909,
+     "dist_ft": 525,
+     "label": "Dam No. 1 crest"
+    }
+   ]
+  }
+ ]
+}
