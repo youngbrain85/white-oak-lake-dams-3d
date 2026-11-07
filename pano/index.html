@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>White Oak Dam 360 Tour</title>
+<meta name="description" content="Walk through the Blender/Cycles reconstruction of the White Oak Lake Dam No. 1 spillway in 360° panoramas rendered from six viewpoints.">
+<style>
+  /* layout: full-screen panorama sphere; glass scene strip along the bottom, caption top-left, hotspots drawn in 3D (single dark look by choice) */
+  :root { --bg:#0e1216; --panel:rgba(12,16,22,0.66); --fg:#eef2f5; --muted:#a3adb7; --accent:#8fd0ff; --border:rgba(255,255,255,0.14); color-scheme: dark; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg); font:14px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; overflow:hidden; }
+  canvas#c { display:block; width:100vw; height:100vh; touch-action:none; }
+  #cap { position:fixed; left:max(16px, env(safe-area-inset-left, 0px)); top:calc(16px + env(safe-area-inset-top, 0px)); max-width:min(420px, calc(100vw - 32px)); background:var(--panel); backdrop-filter:blur(8px); border:1px solid var(--border); border-radius:12px; padding:10px 14px; opacity:0.9; }
+  #cap h1 { font-size:15px; margin:0 0 2px; font-weight:600; }
+  #cap .t { font-size:14px; margin:0 0 4px; color:var(--accent); }
+  #cap p { margin:0; color:var(--muted); font-size:12px; }
+  #cap .hint { font-size:11px; margin-top:6px; }
+  #strip { position:fixed; left:0; right:0; bottom:0; padding:10px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); display:flex; gap:8px; overflow-x:auto; background:linear-gradient(to top, rgba(10,13,17,0.8), rgba(10,13,17,0)); }
+  #strip button { flex:none; background:var(--panel); color:var(--fg); border:1px solid var(--border); border-radius:10px; padding:0; width:132px; cursor:pointer; text-align:left; overflow:hidden; }
+  #strip button img { display:block; width:132px; height:44px; object-fit:cover; object-position:50% 45%; }
+  #strip button span { display:block; padding:5px 8px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #strip button[aria-current="true"] { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  #links { position:fixed; right:max(16px, env(safe-area-inset-right, 0px)); top:calc(16px + env(safe-area-inset-top, 0px)); display:flex; gap:6px; }
+  #links a { background:var(--panel); color:var(--fg); border:1px solid var(--border); border-radius:8px; padding:5px 9px; font-size:12px; text-decoration:none; }
+  #links a:hover { border-color:var(--accent); }
+  #loader { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:var(--bg); color:var(--muted); flex-direction:column; gap:10px; z-index:5; }
+  .spin { width:28px; height:28px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:sp 1s linear infinite; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+  #tip { position:fixed; pointer-events:none; background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:4px 8px; font-size:12px; transform:translate(-50%, -140%); display:none; }
+  @media (max-width:640px) { #cap p { display:none; } #links { display:none; } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation:none; } }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="loader"><div class="spin"></div><div id="status">Loading panorama…</div></div>
+<div id="cap"><h1>White Oak Lake Dam – 360° tour</h1><div class="t" id="title"></div><p id="desc"></p><div class="hint" id="hint">Drag to look around · wheel to zoom · click a marker to walk there</div></div>
+<div id="links"><a href="../">Render gallery</a><a href="../viewer/">3D viewer</a></div>
+<div id="strip"></div>
+<div id="tip"></div>
+<script type="module">
+import * as THREE from 'three';
+const params = new URLSearchParams(location.search);
+const SHOT = params.get('shot');
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: !!SHOT });
+renderer.setPixelRatio(SHOT ? 1 : Math.min(devicePixelRatio, 2)); renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1100);
+const sphereGeo = new THREE.SphereGeometry(500, 96, 48); sphereGeo.scale(-1, 1, 1);
+const sphereMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+const sphere = new THREE.Mesh(sphereGeo, sphereMat); scene.add(sphere);
+const hotGroup = new THREE.Group(); scene.add(hotGroup);
+const loader = new THREE.TextureLoader();
+const small = innerWidth * devicePixelRatio < 1800;
+
+let tour = null, current = null, yaw = 0, pitch = 0, fov = 75;
+const dirFromUV = (u, v, r = 1) => { const phi = 2 * Math.PI * u, el = (v - 0.5) * Math.PI; return new THREE.Vector3(Math.cos(phi) * Math.cos(el) * r, Math.sin(el) * r, Math.sin(phi) * Math.cos(el) * r); };
+
+function makeMarker(h) {
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 256; const g = cv.getContext('2d');
+  g.beginPath(); g.arc(128, 128, 96, 0, Math.PI * 2); g.fillStyle = 'rgba(12,16,22,0.55)'; g.fill();
+  g.lineWidth = 10; g.strokeStyle = 'rgba(143,208,255,0.95)'; g.stroke();
+  g.beginPath(); g.arc(128, 128, 34, 0, Math.PI * 2); g.fillStyle = 'rgba(143,208,255,0.95)'; g.fill();
+  g.beginPath(); g.moveTo(128, 70); g.lineTo(150, 100); g.lineTo(106, 100); g.closePath(); g.fillStyle = 'rgba(255,255,255,0.95)'; g.fill();
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+  const dist = 40; sp.position.copy(dirFromUV(h.u, h.v, dist));
+  const s = 2.6 + 1.6 * Math.min(1, 120 / Math.max(h.dist_ft, 20)); sp.scale.set(s, s, 1);
+  sp.userData = h; return sp;
+}
+
+async function show(id, keepView = false) {
+  const sc = tour.scenes.find(s => s.id === id); if (!sc) return;
+  current = sc; document.getElementById('title').textContent = sc.title; document.getElementById('desc').textContent = sc.desc;
+  document.querySelectorAll('#strip button').forEach(b => b.setAttribute('aria-current', b.dataset.id === id ? 'true' : 'false'));
+  try { localStorage.setItem('wo_pano', id); } catch (e) {}
+  const tex = await new Promise((res, rej) => loader.load(small ? sc.image_small : sc.image, res, undefined, rej));
+  tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.generateMipmaps = true; tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  if (sphereMat.map) sphereMat.map.dispose();
+  sphereMat.map = tex; sphereMat.color.set(0xffffff); sphereMat.needsUpdate = true;
+  hotGroup.clear(); for (const h of sc.hotspots) hotGroup.add(makeMarker(h));
+  if (!keepView) { yaw = Math.PI; pitch = -0.05; }   // texture centre (u = 0.5) is the render's view direction
+  const loaderEl = document.getElementById('loader'); if (loaderEl) loaderEl.style.display = 'none';
+}
+
+function updateCamera() {
+  pitch = Math.max(-1.45, Math.min(1.45, pitch));
+  camera.fov = fov; camera.updateProjectionMatrix();
+  camera.lookAt(Math.cos(yaw) * Math.cos(pitch), Math.sin(pitch), Math.sin(yaw) * Math.cos(pitch));
+}
+
+// pointer look
+let drag = null;
+canvas.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, yaw, pitch, moved: false }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointermove', e => {
+  if (drag) { const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true; const k = (fov / 75) * 0.0032; yaw = drag.yaw - dx * k; pitch = drag.pitch + dy * k; return; }
+  hover(e.clientX, e.clientY);
+});
+canvas.addEventListener('pointerup', e => { const wasDrag = drag && drag.moved; drag = null; if (!wasDrag) click(e.clientX, e.clientY); });
+canvas.addEventListener('wheel', e => { fov = Math.max(30, Math.min(100, fov + e.deltaY * 0.03)); e.preventDefault(); }, { passive: false });
+let pinch = null;
+canvas.addEventListener('touchstart', e => { if (e.touches.length === 2) pinch = { d: Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY), fov }; }, { passive: true });
+canvas.addEventListener('touchmove', e => { if (pinch && e.touches.length === 2) { const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); fov = Math.max(30, Math.min(100, pinch.fov * pinch.d / d)); } }, { passive: true });
+canvas.addEventListener('touchend', () => { pinch = null; });
+
+const ray = new THREE.Raycaster(); const tip = document.getElementById('tip');
+function pick(x, y) { ray.setFromCamera(new THREE.Vector2(x / innerWidth * 2 - 1, -(y / innerHeight * 2 - 1)), camera); const hits = ray.intersectObjects(hotGroup.children); return hits.length ? hits[0].object : null; }
+function hover(x, y) { const o = pick(x, y); canvas.style.cursor = o ? 'pointer' : 'grab'; if (o) { tip.style.display = 'block'; tip.style.left = x + 'px'; tip.style.top = y + 'px'; tip.textContent = `${o.userData.label} · ${o.userData.dist_ft} ft`; } else tip.style.display = 'none'; }
+function click(x, y) { const o = pick(x, y); if (o) { tip.style.display = 'none'; go(o.userData.to); } }
+function go(id) { if (!current) return; const back = current.id; show(id).then(() => { // face the way we came from, turned around
+  const h = (tour.scenes.find(s => s.id === id) || {}).hotspots?.find(k => k.to === back); if (h) { yaw = 2 * Math.PI * h.u + Math.PI; pitch = -0.05; } }); }
+
+async function main() {
+  tour = await (await fetch('tour.json')).json();
+  if (!tour.scenes || !tour.scenes.length) { document.getElementById('status').textContent = 'The panoramas are still being rendered. Check back shortly.'; document.querySelector('#loader .spin').style.display = 'none'; return; }
+  const strip = document.getElementById('strip');
+  for (const sc of tour.scenes) {
+    const b = document.createElement('button'); b.dataset.id = sc.id; b.innerHTML = `<img src="${sc.image_small}" alt=""><span>${sc.title}</span>`;
+    b.addEventListener('click', () => show(sc.id)); strip.appendChild(b);
+  }
+  let start = SHOT || tour.scenes[0].id; try { const s = localStorage.getItem('wo_pano'); if (!SHOT && s && tour.scenes.some(x => x.id === s)) start = s; } catch (e) {}
+  await show(start);
+  if (params.get('yaw')) yaw = parseFloat(params.get('yaw'));
+  let frames = 0;
+  function loop() { updateCamera(); renderer.render(scene, camera); frames++; if (frames === 3) window.__ready = true; requestAnimationFrame(loop); }
+  loop();
+}
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+main().catch(e => { console.error(e); document.getElementById('status').textContent = 'Error: ' + e.message; });
+</script>
+</body>
+</html>

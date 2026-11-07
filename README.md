@@ -8,6 +8,7 @@ Version 2 rebuilds the whole scene in **Blender 5.2** and renders it with **Cycl
 exported to glTF. The original procedural Three.js build is kept as `viewer-legacy/`.
 
 **Live:** https://youngbrain85.github.io/white-oak-lake-dams-3d/ (render gallery) ·
+https://youngbrain85.github.io/white-oak-lake-dams-3d/pano/ (360° Cycles panorama tour) ·
 https://youngbrain85.github.io/white-oak-lake-dams-3d/viewer/ (interactive viewer)
 
 ![Stilling basin, Cycles render](renders/cycles/basin.png)
@@ -28,6 +29,7 @@ https://youngbrain85.github.io/white-oak-lake-dams-3d/viewer/ (interactive viewe
 | `viewer/` | Three.js r170 viewer for the Blender GLB (meshopt decoding, GPU instancing of the 7,936 trees and 1,750 rocks, AgX tone mapping, Sky). |
 | `viewer-legacy/` | Version 1 procedural viewer. |
 | `renders/cycles/` | Cycles renders of the ten camera presets, 1920×1080, 96 samples + OpenImageDenoise. |
+| `pano/` | 360° tour: six equirectangular Cycles panoramas (3072×1536, 64 samples) with a small Three.js viewer and hotspot links between viewpoints (`blender/make_pano_tour.py` builds it from `blender/out/panos/`). |
 | `renders/*.png` | Version 1 real-time renders. |
 | `tools/` | Version 1 generators: heightmap / albedo / vegetation placement from the aerial (`gen_terrain.py`), textures, headless renderer. |
 | `ref/` | Existing-condition photos and the 2005 aerial crop extracted from the PDF. |
@@ -42,6 +44,8 @@ python blender\build_scene.py --build
 python blender\build_scene.py --render preview        :: 960x540 quick check of every preset
 python blender\build_scene.py --render final bridge   :: 1920x1080, 96 samples
 python blender\build_scene.py --export                :: model\white_oak_lake_dams_blender.glb
+python blender\build_scene.py --pano                  :: six 360° panoramas -> blender\out\panos
+python blender\make_pano_tour.py                      :: pano\*.jpg + pano\tour.json
 npx gltfpack -i model\white_oak_lake_dams_blender.glb -o model\white_oak_lake_dams_blender.pack.glb -cc -kn -km -vp 14 -vt 12 -noq
 ```
 
