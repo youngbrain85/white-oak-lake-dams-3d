@@ -1,0 +1,45 @@
+{
+ "exposure_ev": -3.4,
+ "maps": {
+  "structures": {
+   "file": "structures.jpg",
+   "file_small": "structures_s.jpg",
+   "scale": 29.234582923923494,
+   "objects": [
+    "StructuresBaked"
+   ],
+   "sunlit_p99": 29.234582923923494,
+   "mean_lum": 4.306750845813575
+  },
+  "surfaces": {
+   "file": "surfaces.jpg",
+   "file_small": "surfaces_s.jpg",
+   "scale": 27.66531584028628,
+   "objects": [
+    "SurfacesBaked"
+   ],
+   "sunlit_p99": 27.66531584028628,
+   "mean_lum": 11.360661298098224
+  },
+  "terrain_inner": {
+   "file": "terrain_inner.jpg",
+   "file_small": "terrain_inner_s.jpg",
+   "scale": 30.50174484700394,
+   "objects": [
+    "TerrainInner"
+   ],
+   "sunlit_p99": 30.50174484700394,
+   "mean_lum": 10.394296651980875
+  },
+  "terrain_outer": {
+   "file": "terrain_outer.jpg",
+   "file_small": "terrain_outer_s.jpg",
+   "scale": 30.551166417160033,
+   "objects": [
+    "TerrainOuter"
+   ],
+   "sunlit_p99": 30.551166417160033,
+   "mean_lum": 11.12120761080758
+  }
+ }
+}

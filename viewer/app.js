@@ -10,7 +10,8 @@ import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
 import { WebGLPathTracer } from 'three-gpu-pathtracer';
 
 const ASSET = window.ASSET_BASE || 'assets/';
-const MODEL = window.MODEL_URL || '../model/white_oak_lake_dams_blender.pack.glb';
+const MODEL = window.MODEL_URL || '../model/white_oak_lake_dams_blender_baked.pack.glb';
+const LIGHTMAPS = window.LIGHTMAPS_URL || '../model/lightmaps/lightmaps.json';
 const TREES_LITE = window.TREES_LITE_URL || '../model/trees_lite.glb';
 const params = new URLSearchParams(location.search);
 const SHOT = params.get('shot');
@@ -157,6 +158,56 @@ async function loadModel(say) {
   return { root, instanced: n };
 }
 
+// ------------------------------------------------------------------ baked Cycles lighting (lightmaps on UV channel 1)
+// Static surfaces (terrain, concrete, paths) carry irradiance baked in Cycles: direct sun + sky + bounce light,
+// tree and structure shadows included. They are drawn with MeshBasicMaterial(map × lightMap) so the raster sun
+// does not light them a second time; trees, rocks, water and metalwork stay dynamic.
+const BAKE = { meta: null, applied: false, originals: new Map(), textures: new Map(), lightScale: 1 };
+async function loadLightmaps() {
+  try { BAKE.meta = await (await fetch(LIGHTMAPS)).json(); } catch (e) { BAKE.meta = null; }
+  return !!BAKE.meta;
+}
+function bakedTargets(objNames) {
+  const out = [];
+  scene.traverse(o => { if (o.isMesh && !o.isInstancedMesh && objNames.some(n => o.name === n || o.name.startsWith(n + '_') || o.name.startsWith(n + '.') || (o.parent && (o.parent.name === n)))) out.push(o); });
+  return out;
+}
+function setBakedLighting(on, say) {
+  if (!BAKE.meta) { if (say) say('No baked lightmaps available'); return false; }
+  const ev = Math.pow(2, BAKE.meta.exposure_ev);               // Cycles view exposure (-3.4 EV)
+  const K = ev / renderer.toneMappingExposure;                 // irradiance -> viewer light units
+  const base = LIGHTMAPS.replace(/[^/]*$/, '');
+  const small = innerWidth * devicePixelRatio < 1600;
+  if (on && !BAKE.applied) {
+    let sunlit = 0, n = 0;
+    for (const [key, m] of Object.entries(BAKE.meta.maps)) {
+      if (!BAKE.textures.has(key)) { const t = texLoader.load(base + (small ? m.file_small : m.file)); t.colorSpace = THREE.SRGBColorSpace; t.channel = 1; t.flipY = false; t.anisotropy = 8; BAKE.textures.set(key, t); }
+      const lm = BAKE.textures.get(key);
+      for (const mesh of bakedTargets(m.objects)) {
+        if (!mesh.geometry.attributes.uv1) continue;
+        if (!BAKE.originals.has(mesh.uuid)) BAKE.originals.set(mesh.uuid, { mesh, material: mesh.material, receiveShadow: mesh.receiveShadow });
+        const o = mesh.material;
+        const bm = new THREE.MeshBasicMaterial({ map: o.map || null, color: o.color ? o.color.clone() : new THREE.Color(1, 1, 1), side: o.side, alphaTest: o.alphaTest || 0, transparent: false });
+        bm.lightMap = lm; bm.lightMapIntensity = m.scale * K; bm.name = o.name + '_baked'; bm.userData.baked = true;
+        if (o.map && o.map.channel !== undefined) bm.map = o.map;
+        mesh.material = bm; mesh.receiveShadow = false;
+      }
+      sunlit += m.sunlit_p99 * K; n++;
+    }
+    // bring the dynamic sun/sky for trees, rocks and water in line with the baked sunlit level
+    if (n && SUN) { const target = (sunlit / n) / Math.PI; const f = THREE.MathUtils.clamp(target / 2.4, 0.4, 2.5); BAKE.lightScale = f; SUN.intensity = 2.3 * f; scene.traverse(o => { if (o.isHemisphereLight) o.intensity = 0.3 * f; }); scene.environmentIntensity = 0.45 * f; }
+    BAKE.applied = true;
+  } else if (!on && BAKE.applied) {
+    for (const { mesh, material, receiveShadow } of BAKE.originals.values()) { mesh.material = material; mesh.receiveShadow = receiveShadow; }
+    BAKE.originals.clear(); BAKE.applied = false;
+    if (SUN) { SUN.intensity = 2.3; scene.traverse(o => { if (o.isHemisphereLight) o.intensity = 0.3; }); scene.environmentIntensity = 0.45; }
+  }
+  try { localStorage.setItem('wo_baked', on ? '1' : '0'); } catch (e) {}
+  if (say) say(on ? `Baked Cycles lighting (${Object.keys(BAKE.meta.maps).length} lightmaps)` : '');
+  return true;
+}
+window.__BAKE = BAKE;
+
 // ------------------------------------------------------------------ in-browser path tracing (three-gpu-pathtracer)
 // Builds a second, flattened copy of the scene (near trees in full, far trees as low-poly variants, rocks merged)
 // and renders it progressively with physically based path tracing on the viewer's GPU: the same materials,
@@ -255,6 +306,12 @@ async function main() {
   say('Loading model…');
   const { instanced } = await loadModel(say);
   console.log('instanced meshes', instanced);
+  const haveBake = await loadLightmaps();
+  const bakeCb = document.getElementById('tgBaked'), bakeInfo = document.getElementById('bakeInfo');
+  const bakeSay = t => { if (bakeInfo) bakeInfo.textContent = t; };
+  let wantBake = haveBake && params.get('baked') !== '0'; try { if (haveBake && !params.has('baked') && localStorage.getItem('wo_baked') === '0') wantBake = false; } catch (e) {}
+  if (bakeCb) { bakeCb.disabled = !haveBake; bakeCb.checked = wantBake; bakeCb.addEventListener('change', () => setBakedLighting(bakeCb.checked, bakeSay)); }
+  if (wantBake) setBakedLighting(true, bakeSay); else if (bakeInfo && !haveBake) bakeInfo.textContent = 'Lightmaps not found; dynamic lighting';
   document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => applyPreset(b.dataset.view)));
   const tg = (id, pred) => { const el = document.getElementById(id); if (!el) return; el.addEventListener('change', () => scene.traverse(o => { if (pred(o)) o.visible = el.checked; })); };
   tg('tgTrees', o => /^Tree(Leaves|Wood)/.test(o.name));

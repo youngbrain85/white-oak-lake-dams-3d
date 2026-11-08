@@ -28,6 +28,7 @@ https://youngbrain85.github.io/white-oak-lake-dams-3d/viewer/ (interactive viewe
 | `model/white_oak_lake_dams.glb` | Version 1 export from the procedural Three.js scene. |
 | `viewer/` | Three.js viewer for the Blender GLB (meshopt decoding, GPU instancing of the 7,936 trees and 1,750 rocks, AgX tone mapping, Sky). Has an optional **path-tracing mode** (three-gpu-pathtracer) that renders the same scene with physically based path tracing on the viewer's GPU: sun + sky importance sampling, 4 bounces, progressive convergence. |
 | `model/trees_lite.glb` | Low-poly tree variants used for the far field in path-tracing mode. |
+| `model/white_oak_lake_dams_blender_baked.glb`, `model/lightmaps/` | Baked variant: the static structures joined into `StructuresBaked` / `SurfacesBaked` with a second UV set, plus four 2048² lightmaps (sRGB-encoded irradiance, `scale` in `lightmaps.json`). Built by `blender/bake_lightmaps.py` (prepare → bake per group → finish). The unbaked GLB is kept for the fallback. |
 | `viewer-legacy/` | Version 1 procedural viewer. |
 | `renders/cycles/` | Cycles renders of the ten camera presets, 1920×1080, 96 samples + OpenImageDenoise. |
 | `pano/` | 360° tour: six equirectangular Cycles panoramas (3072×1536, 64 samples) with a small Three.js viewer and hotspot links between viewpoints (`blender/make_pano_tour.py` builds it from `blender/out/panos/`). |
@@ -45,6 +46,9 @@ python blender\build_scene.py --build
 python blender\build_scene.py --render preview        :: 960x540 quick check of every preset
 python blender\build_scene.py --render final bridge   :: 1920x1080, 96 samples
 python blender\build_scene.py --export                :: model\white_oak_lake_dams_blender.glb
+python blender\bake_lightmaps.py --prepare           :: join static meshes, add lightmap UVs
+python blender\bake_lightmaps.py --bake terrain_inner :: (also structures, surfaces, terrain_outer; ~10 min each)
+python blender\bake_lightmaps.py --finish            :: model\lightmaps\*.jpg + baked GLBs
 python blender\build_scene.py --pano                  :: six 360° panoramas -> blender\out\panos
 python blender\make_pano_tour.py                      :: pano\*.jpg + pano\tour.json
 npx gltfpack -i model\white_oak_lake_dams_blender.glb -o model\white_oak_lake_dams_blender.pack.glb -cc -kn -km -vp 14 -vt 12 -noq
@@ -61,7 +65,7 @@ Blender itself does not run in a browser, so the scene reaches the web three way
 
 | Mode | Where | What you get |
 |---|---|---|
-| Real-time | `viewer/` (default) | Rasterised glTF of the Blender scene, instant, any device. Lighting is an approximation (shadow map + sky environment). |
+| Real-time, baked | `viewer/` (default) | glTF of the Blender scene with **Cycles lighting baked into lightmaps** for the terrain, concrete and paths (sun, sky, bounce light and tree shadows at 2 px/ft), so the ground and structures look like the Cycles renders while trees, rocks and water stay dynamic. Switch *Baked Cycles lighting* off in the menu to fall back to dynamic shadow-mapped lighting. |
 | Path traced | `viewer/` → "Path tracing on your GPU" | The same glTF rendered by [three-gpu-pathtracer](https://github.com/gkjohnson/three-gpu-pathtracer): true global illumination, soft shadows, glossy water, same sun/sky as Cycles. Converges in a few seconds on a desktop GPU; needs WebGL2 with float textures and about 1 GB of GPU memory for the *full* setting (1.4 M triangles). |
 | Pre-rendered | `pano/` and `renders/cycles/` | Cycles output: 360° panoramas from six viewpoints and ten fixed views. Highest quality, fixed viewpoints. |
 
@@ -100,6 +104,11 @@ The spillway is modelled in a local frame whose origin is the weir center (spill
 * Trees and grass are placed by classifying woodland in the aerial; species, heights and positions are plausible, not surveyed.
 * Buried work (cut-off wall, toe drains, waterstops, reinforcing) is not modelled.
 * No public photographs of the completed project could be found online; the only references used are the photos and aerial contained in the bid set.
+
+## Rolling back the baked lighting
+
+The state before baking is the branch `prebake` (commit fd64726). To go back: `git checkout prebake -- viewer model/lightmaps` and remove the
+`*_baked*.glb` files, or simply leave the viewer's *Baked Cycles lighting* switch off (the unbaked materials are still in the GLB).
 
 ## Credits
 
