@@ -26,7 +26,8 @@ https://youngbrain85.github.io/white-oak-lake-dams-3d/viewer/ (interactive viewe
 | `model/white_oak_lake_dams.blend` | The saved Blender scene (open in Blender 4.2+ / 5.x). |
 | `model/white_oak_lake_dams_blender.glb` | Full scene exported from Blender (33 MB). `*.pack.glb` is the meshopt-compressed copy the viewer loads (16 MB); `*_lite*` has decimated terrain for the claude.ai artifact. |
 | `model/white_oak_lake_dams.glb` | Version 1 export from the procedural Three.js scene. |
-| `viewer/` | Three.js r170 viewer for the Blender GLB (meshopt decoding, GPU instancing of the 7,936 trees and 1,750 rocks, AgX tone mapping, Sky). |
+| `viewer/` | Three.js viewer for the Blender GLB (meshopt decoding, GPU instancing of the 7,936 trees and 1,750 rocks, AgX tone mapping, Sky). Has an optional **path-tracing mode** (three-gpu-pathtracer) that renders the same scene with physically based path tracing on the viewer's GPU: sun + sky importance sampling, 4 bounces, progressive convergence. |
+| `model/trees_lite.glb` | Low-poly tree variants used for the far field in path-tracing mode. |
 | `viewer-legacy/` | Version 1 procedural viewer. |
 | `renders/cycles/` | Cycles renders of the ten camera presets, 1920×1080, 96 samples + OpenImageDenoise. |
 | `pano/` | 360° tour: six equirectangular Cycles panoramas (3072×1536, 64 samples) with a small Three.js viewer and hotspot links between viewpoints (`blender/make_pano_tour.py` builds it from `blender/out/panos/`). |
@@ -53,6 +54,16 @@ The build takes a few seconds; a final frame takes roughly ten minutes on four C
 `viewer/assets/` (heightmap, aerial albedo, water and cut masks, tree positions), which `tools/gen_terrain.py` produces from the aerial on sheet 3.
 
 Serve `viewer/` over HTTP (`python -m http.server 8000` in the repository root, then open `/viewer/`); the model is fetched from `../model/`.
+
+## Seeing the Blender scene on the web
+
+Blender itself does not run in a browser, so the scene reaches the web three ways, in increasing fidelity and cost:
+
+| Mode | Where | What you get |
+|---|---|---|
+| Real-time | `viewer/` (default) | Rasterised glTF of the Blender scene, instant, any device. Lighting is an approximation (shadow map + sky environment). |
+| Path traced | `viewer/` → "Path tracing on your GPU" | The same glTF rendered by [three-gpu-pathtracer](https://github.com/gkjohnson/three-gpu-pathtracer): true global illumination, soft shadows, glossy water, same sun/sky as Cycles. Converges in a few seconds on a desktop GPU; needs WebGL2 with float textures and about 1 GB of GPU memory for the *full* setting (1.4 M triangles). |
+| Pre-rendered | `pano/` and `renders/cycles/` | Cycles output: 360° panoramas from six viewpoints and ten fixed views. Highest quality, fixed viewpoints. |
 
 ## What the Blender scene contains
 

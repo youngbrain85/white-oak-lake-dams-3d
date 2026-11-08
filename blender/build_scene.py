@@ -1034,6 +1034,57 @@ def render_panos(names, width=3072, samples=64, outdir=None):
         json.dump(meta, open(mpath, 'w'), indent=1)
         print(f'pano {name}: {time.time() - t:.0f}s', flush=True)
 
+def export_trees_lite(path, ncards=36, card_scale=0.30):
+    """3 low-poly tree variants (trunk + few big leaf cards) for the far field of the in-browser path tracer."""
+    sc = clear_scene(); M = {}
+    M['bark'] = pbr('Bark', os.path.join(TEX, 'bark.jpg'), os.path.join(TEX, 'bark_n.jpg'), rough=0.95, nstrength=1.0)
+    for i in range(3):
+        M[f'leaf{i}'] = pbr(f'Leaves{i}', os.path.join(TEX, f'leafcard{i}.png'), rough=0.55, alpha_from_albedo=True, translucent=0.3, spec_ior=1.4)
+    H = 40.0
+    for i in range(3):
+        rng = random.Random(500 + i)
+        trunk_h = H * rng.uniform(0.38, 0.5); r0 = H * 0.022
+        bm = bmesh.new()
+        res = bmesh.ops.create_cone(bm, cap_ends=True, segments=7, radius1=r0, radius2=r0 * 0.5, depth=trunk_h + 1)
+        bmesh.ops.transform(bm, matrix=Matrix.Translation((0, 0, trunk_h / 2 - 0.5)), verts=res['verts'])
+        me = bpy.data.meshes.new(f'TreeLiteWood{i}'); bm.to_mesh(me); bm.free()
+        uv = me.uv_layers.new(name='UVMap'); Vv = np.array([v.co for v in me.vertices]); Fv = [p.vertices[:] for p in me.polygons]
+        uv.data.foreach_set('uv', box_uv(Vv, Fv, 0.3).ravel()); me.materials.append(M['bark'])
+        ob = bpy.data.objects.new(f'TreeLiteWood{i}', me); coll('Trees').objects.link(ob); ob.location = (i * 100, 0, 0)
+        V = []; F = []; UVl = []
+        cz = trunk_h + H * 0.22; rx = H * 0.44; rz = H * 0.36; card = H * card_scale; ccen = Vector((0, 0, cz))
+        for k in range(ncards):
+            u = rng.uniform(0, 2 * math.pi); v = math.acos(rng.uniform(-1, 1)); rr = rng.uniform(0.5, 0.95)
+            ctr = Vector((rx * rr * math.sin(v) * math.cos(u), rx * rr * math.sin(v) * math.sin(u), cz + rz * rr * math.cos(v)))
+            nrm = (ctr - ccen); nrm.z *= 0.6
+            if nrm.length < 1e-3: nrm = Vector((1, 0, 0))
+            nrm.normalize()
+            Mr = nrm.to_track_quat('Y', 'Z').to_matrix() @ Euler((rng.uniform(-0.5, 0.5), rng.uniform(0, 2 * math.pi), rng.uniform(-0.5, 0.5))).to_matrix()
+            base = len(V)
+            for (dx, dz) in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
+                p = Mr @ Vector((dx * card / 2, 0, dz * card / 2)); V.append((ctr + p)[:])
+            F.append([base, base + 1, base + 2, base + 3]); UVl += [(0, 0), (1, 0), (1, 1), (0, 1)]
+        lo = mesh_from_arrays(f'TreeLiteLeaves{i}', V, F, UVl, 'Trees', M[f'leaf{i}']); lo.location = (i * 100, 0, 0)
+    for m in bpy.data.materials:
+        if not m.use_nodes: continue
+        nt = m.node_tree; bsdf = next((n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'), None); alb = next((n for n in nt.nodes if n.type == 'TEX_IMAGE' and n.name == 'ALBEDO'), None)
+        out = next((n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL'), None); tc = next((n for n in nt.nodes if n.type == 'TEX_COORD'), None)
+        if bsdf is None or alb is None: continue
+        for l in list(bsdf.inputs['Base Color'].links): nt.links.remove(l)
+        nt.links.new(alb.outputs['Color'], bsdf.inputs['Base Color'])
+        if m.get('export_albedo', '').endswith('.png'): nt.links.new(alb.outputs['Alpha'], bsdf.inputs['Alpha'])
+        for l in list(alb.inputs['Vector'].links): nt.links.remove(l)
+        nt.links.new(tc.outputs['UV'], alb.inputs['Vector'])
+        for l in list(out.inputs['Surface'].links): nt.links.remove(l)
+        nt.links.new(bsdf.outputs['BSDF'], out.inputs['Surface'])
+        for l in list(bsdf.inputs['Roughness'].links): nt.links.remove(l)
+        bsdf.inputs['Roughness'].default_value = float(m.get('export_rough', 0.8))
+    for im in bpy.data.images:
+        if im.size[0] > 1024: im.scale(im.size[0] // 2, im.size[1] // 2)
+    bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', export_apply=True, export_materials='EXPORT', export_image_format='AUTO', export_jpeg_quality=80,
+                              export_normals=True, export_texcoords=True, export_cameras=False, export_lights=False, export_yup=True, use_visible=True)
+    print('exported', path, os.path.getsize(path) / 1e6, 'MB')
+
 def export_glb(path, lite=False):
     bpy.ops.wm.open_mainfile(filepath=BLEND)
     sc = bpy.context.scene
@@ -1090,9 +1141,10 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('--build', action='store_true'); ap.add_argument('--render', nargs='?', const='preview'); ap.add_argument('--export', nargs='?', const=os.path.join(ROOT, 'model', 'white_oak_lake_dams_blender.glb'))
     ap.add_argument('names', nargs='*'); ap.add_argument('--outdir'); ap.add_argument('--lite', action='store_true')
-    ap.add_argument('--pano', action='store_true'); ap.add_argument('--width', type=int, default=3072); ap.add_argument('--samples', type=int, default=64)
+    ap.add_argument('--trees-lite', dest='trees_lite'); ap.add_argument('--pano', action='store_true'); ap.add_argument('--width', type=int, default=3072); ap.add_argument('--samples', type=int, default=64)
     a = ap.parse_args()
     if a.build: build()
     if a.render: render(a.render, a.names or list(PRESETS.keys()), a.outdir)
     if a.pano: render_panos(a.names or list(PANOS.keys()), a.width, a.samples, a.outdir)
+    if a.trees_lite: export_trees_lite(a.trees_lite)
     if a.export: export_glb(a.export, a.lite)
