@@ -4,22 +4,22 @@
   "structures": {
    "file": "structures.jpg",
    "file_small": "structures_s.jpg",
-   "scale": 29.234582923923494,
+   "scale": 42.20636095518494,
    "objects": [
     "StructuresBaked"
    ],
-   "sunlit_p99": 29.234582923923494,
-   "mean_lum": 4.306750845813575
+   "sunlit_p99": 42.20636095518494,
+   "mean_lum": 7.63219012952798
   },
   "surfaces": {
    "file": "surfaces.jpg",
    "file_small": "surfaces_s.jpg",
-   "scale": 27.66531584028628,
+   "scale": 27.66598362423706,
    "objects": [
     "SurfacesBaked"
    ],
-   "sunlit_p99": 27.66531584028628,
-   "mean_lum": 11.360661298098224
+   "sunlit_p99": 27.66598362423706,
+   "mean_lum": 11.36064151063214
   },
   "terrain_inner": {
    "file": "terrain_inner.jpg",
