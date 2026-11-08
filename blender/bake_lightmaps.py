@@ -56,6 +56,34 @@ def planar_lm_uv(ob, inset=0.004):
     lm.data.foreach_set('uv', uv.ravel())
     return {'bounds': [float(mn[0]), float(mn[1]), float(mx[0]), float(mx[1])]}
 
+def fix_normals(ob, closed):
+    """Cycles bakes the front side of each face: walls built with inconsistent winding baked black.
+    Closed solids get consistent outward normals; open surfaces are flipped to face up."""
+    import bmesh
+    bm = bmesh.new(); bm.from_mesh(ob.data)
+    if closed:
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+        # recalc_face_normals orients each shell consistently but can pick 'inward' for a shell;
+        # check each connected shell against its own centroid and flip if it points in
+        seen = set()
+        for f in bm.faces:
+            if f.index in seen: continue
+            stack = [f]; shell = []
+            while stack:
+                g = stack.pop()
+                if g.index in seen: continue
+                seen.add(g.index); shell.append(g)
+                for e in g.edges:
+                    for h in e.link_faces:
+                        if h.index not in seen: stack.append(h)
+            c = sum((g.calc_center_median() for g in shell), Vector()) / len(shell)
+            score = sum(g.normal.dot(g.calc_center_median() - c) for g in shell)
+            if score < 0: bmesh.ops.reverse_faces(bm, faces=shell)
+    else:
+        down = [f for f in bm.faces if f.normal.z < 0]
+        if down: bmesh.ops.reverse_faces(bm, faces=down)
+    bm.to_mesh(ob.data); bm.free(); ob.data.update()
+
 def smart_lm_uv(ob):
     me = ob.data
     if 'lm' in me.uv_layers: me.uv_layers.remove(me.uv_layers['lm'])
@@ -81,6 +109,7 @@ def prepare():
             with bpy.context.temp_override(active_object=objs[0], selected_editable_objects=objs, selected_objects=objs):
                 bpy.ops.object.join()
             ob = objs[0]; ob.name = g['join']; ob.data.name = g['join']
+            fix_normals(ob, closed=(key == 'structures'))
             smart_lm_uv(ob)
         else:
             for ob in objs: planar_lm_uv(ob)
