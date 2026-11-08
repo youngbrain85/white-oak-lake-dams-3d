@@ -218,8 +218,9 @@ async function enablePathTracing(on, say) {
     if (!PT.tracer) { PT.tracer = new WebGLPathTracer(renderer); PT.tracer.bounces = 4; PT.tracer.minSamples = 1; PT.tracer.dynamicLowRes = true; PT.tracer.lowResScale = 0.2; PT.tracer.tiles.set(2, 2); PT.tracer.textureSize.set(1024, 1024); PT.tracer.renderToCanvas = true; }
     PT.tracer.renderScale = PT.scale;
     const ps = await buildPathTraceScene(say);
-    say('Path tracer: building BVH…');
-    await PT.tracer.setSceneAsync(ps, camera, { onProgress: p => say(`Path tracer: building BVH… ${Math.round(p * 100)}%`) });
+    say(`Path tracer: building BVH for ${(ps.userData.tris / 1e6).toFixed(2)} M triangles…`);
+    await new Promise(r => setTimeout(r, 50));   // let the message paint; the build itself is synchronous (no cross-origin workers on a static host)
+    PT.tracer.setScene(ps, camera);
     PT.on = true; PT.samples = 0; say('');
   } catch (e) { console.error(e); say('Path tracing unavailable: ' + e.message); PT.on = false; const cb = document.getElementById('tgPT'); if (cb) cb.checked = false; }
   finally { PT.building = false; }
