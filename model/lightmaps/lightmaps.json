@@ -4,12 +4,12 @@
   "structures": {
    "file": "structures.png",
    "file_small": "structures_s.png",
-   "scale": 42.257169707336416,
+   "scale": 42.26008104537963,
    "objects": [
     "StructuresBaked"
    ],
-   "sunlit_p99": 42.257169707336416,
-   "mean_lum": 7.980946638058151
+   "sunlit_p99": 42.26008104537963,
+   "mean_lum": 8.747908597957466
   },
   "surfaces": {
    "file": "surfaces.png",
