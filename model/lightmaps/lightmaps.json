@@ -2,44 +2,44 @@
  "exposure_ev": -3.4,
  "maps": {
   "structures": {
-   "file": "structures.jpg",
-   "file_small": "structures_s.jpg",
-   "scale": 42.20636095518494,
+   "file": "structures.png",
+   "file_small": "structures_s.png",
+   "scale": 42.257169707336416,
    "objects": [
     "StructuresBaked"
    ],
-   "sunlit_p99": 42.20636095518494,
-   "mean_lum": 7.63219012952798
+   "sunlit_p99": 42.257169707336416,
+   "mean_lum": 7.980946638058151
   },
   "surfaces": {
-   "file": "surfaces.jpg",
-   "file_small": "surfaces_s.jpg",
-   "scale": 27.66598362423706,
+   "file": "surfaces.png",
+   "file_small": "surfaces_s.png",
+   "scale": 27.934705074596394,
    "objects": [
     "SurfacesBaked"
    ],
-   "sunlit_p99": 27.66598362423706,
-   "mean_lum": 11.36064151063214
+   "sunlit_p99": 27.934705074596394,
+   "mean_lum": 11.165191989912868
   },
   "terrain_inner": {
    "file": "terrain_inner.jpg",
    "file_small": "terrain_inner_s.jpg",
-   "scale": 30.50174484700394,
+   "scale": 30.49757967945862,
    "objects": [
     "TerrainInner"
    ],
-   "sunlit_p99": 30.50174484700394,
-   "mean_lum": 10.394296651980875
+   "sunlit_p99": 30.49757967945862,
+   "mean_lum": 10.337270056105764
   },
   "terrain_outer": {
    "file": "terrain_outer.jpg",
    "file_small": "terrain_outer_s.jpg",
-   "scale": 30.551166417160033,
+   "scale": 30.54835510915755,
    "objects": [
     "TerrainOuter"
    ],
-   "sunlit_p99": 30.551166417160033,
-   "mean_lum": 11.12120761080758
+   "sunlit_p99": 30.54835510915755,
+   "mean_lum": 11.11594391052356
   }
  }
 }
