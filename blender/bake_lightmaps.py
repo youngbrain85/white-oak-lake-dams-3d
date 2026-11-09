@@ -78,7 +78,11 @@ def fix_normals(ob, closed):
                         if h.index not in seen: stack.append(h)
             c = sum((g.calc_center_median() for g in shell), Vector()) / len(shell)
             score = sum(g.normal.dot(g.calc_center_median() - c) for g in shell)
-            if score < 0: bmesh.ops.reverse_faces(bm, faces=shell)
+            area = sum(g.calc_area() for g in shell)
+            if abs(score) < 0.05 * area:
+                # open sheet (slab fan, ribbons): orient it to face up
+                if sum(g.normal.z * g.calc_area() for g in shell) < 0: bmesh.ops.reverse_faces(bm, faces=shell)
+            elif score < 0: bmesh.ops.reverse_faces(bm, faces=shell)
     else:
         down = [f for f in bm.faces if f.normal.z < 0]
         if down: bmesh.ops.reverse_faces(bm, faces=down)
