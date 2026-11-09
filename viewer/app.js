@@ -124,7 +124,7 @@ function tuneMaterials(root) {
     else if (n === 'ChainLink') { m.transparent = false; m.alphaTest = 0.4; m.side = THREE.DoubleSide; m.metalness = 0.8; m.roughness = 0.45; }
     else if (n.startsWith('Water')) {
       m.transparent = false; m.alphaTest = 0.5; m.depthWrite = true;
-      m.color.setRGB(0.07, 0.12, 0.08); m.roughness = 0.42; m.metalness = 0.0; m.envMapIntensity = 0.7;
+      m.color.setRGB(0.09, 0.14, 0.10); m.roughness = 0.35; m.metalness = 0.0; m.envMapIntensity = 0.8;
       m.normalMap = waterN; m.normalScale = new THREE.Vector2(0.35, 0.35); m.clearcoat = 0.0; m.specularIntensity = 0.6;
       m.userData.water = true;
     }
@@ -162,7 +162,16 @@ async function loadModel(say) {
 // Static surfaces (terrain, concrete, paths) carry irradiance baked in Cycles: direct sun + sky + bounce light,
 // tree and structure shadows included. They are drawn with MeshBasicMaterial(map × lightMap) so the raster sun
 // does not light them a second time; trees, rocks, water and metalwork stay dynamic.
-const BAKE = { meta: null, applied: false, originals: new Map(), textures: new Map(), lightScale: 1 };
+const BAKE = { meta: null, applied: false, originals: new Map(), textures: new Map(), lightScale: 1, gain: parseFloat(params.get('gain') || '1.8') };
+const DETAIL_TEX = texLoader.load(ASSET + 'grass_detail.jpg'); DETAIL_TEX.wrapS = DETAIL_TEX.wrapT = THREE.RepeatWrapping; DETAIL_TEX.colorSpace = THREE.SRGBColorSpace;
+function addGrassDetail(mat) {
+  mat.onBeforeCompile = sh => {
+    sh.uniforms.detailMap = { value: DETAIL_TEX };
+    sh.fragmentShader = sh.fragmentShader.replace('#include <map_pars_fragment>', '#include <map_pars_fragment>\nuniform sampler2D detailMap;')
+      .replace('#include <map_fragment>', '#include <map_fragment>\n  { vec3 det = texture2D(detailMap, vMapUv * 300.0).rgb; vec3 det2 = texture2D(detailMap, vMapUv * 37.0).rgb; diffuseColor.rgb *= (det * 1.25 + 0.1) * (det2 * 0.9 + 0.35); }');
+  };
+  mat.customProgramCacheKey = () => 'baked-terrain-detail';
+}
 async function loadLightmaps() {
   try { BAKE.meta = await (await fetch(LIGHTMAPS)).json(); } catch (e) { BAKE.meta = null; }
   return !!BAKE.meta;
@@ -175,7 +184,7 @@ function bakedTargets(objNames) {
 function setBakedLighting(on, say) {
   if (!BAKE.meta) { if (say) say('No baked lightmaps available'); return false; }
   const ev = Math.pow(2, BAKE.meta.exposure_ev);               // Cycles view exposure (-3.4 EV)
-  const K = ev / renderer.toneMappingExposure;                 // irradiance -> viewer light units
+  const K = ev / renderer.toneMappingExposure * BAKE.gain;     // irradiance -> viewer light units (gain: brighter than the Cycles exposure)
   const base = LIGHTMAPS.replace(/[^/]*$/, '');
   const small = innerWidth * devicePixelRatio < 1600;
   if (on && !BAKE.applied) {
@@ -190,12 +199,13 @@ function setBakedLighting(on, say) {
         const bm = new THREE.MeshBasicMaterial({ map: o.map || null, color: o.color ? o.color.clone() : new THREE.Color(1, 1, 1), side: o.side, alphaTest: o.alphaTest || 0, transparent: false });
         bm.lightMap = lm; bm.lightMapIntensity = m.scale * K; bm.name = o.name + '_baked'; bm.userData.baked = true;
         if (o.map && o.map.channel !== undefined) bm.map = o.map;
+        if (/^Terrain/.test(o.name)) { bm.color.setRGB(0.9, 0.93, 0.85); addGrassDetail(bm); }
         mesh.material = bm; mesh.receiveShadow = false;
       }
       sunlit += m.sunlit_p99 * K; n++;
     }
     // bring the dynamic sun/sky for trees, rocks and water in line with the baked sunlit level
-    if (n && SUN) { const target = (sunlit / n) / Math.PI; const f = THREE.MathUtils.clamp(target / 2.4, 0.4, 2.5); BAKE.lightScale = f; SUN.intensity = 2.3 * f; scene.traverse(o => { if (o.isHemisphereLight) o.intensity = 0.3 * f; }); scene.environmentIntensity = 0.45 * f; }
+    if (n && SUN) { const target = (sunlit / n) / Math.PI; const f = THREE.MathUtils.clamp(target / 2.4, 0.6, 2.5); BAKE.lightScale = f; SUN.intensity = 2.3 * f; scene.traverse(o => { if (o.isHemisphereLight) o.intensity = 0.3 * f; }); scene.environmentIntensity = 0.45 * f; }
     BAKE.applied = true;
   } else if (!on && BAKE.applied) {
     for (const { mesh, material, receiveShadow } of BAKE.originals.values()) { mesh.material = material; mesh.receiveShadow = receiveShadow; }

@@ -91,7 +91,7 @@ def smart_lm_uv(ob):
     select_only([ob])
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.select_all(action='SELECT')
-    bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.006, area_weight=0.0, correct_aspect=True, scale_to_bounds=False)
+    bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.004, area_weight=0.0, correct_aspect=True, scale_to_bounds=True)
     bpy.ops.object.mode_set(mode='OBJECT')
     return {}
 
@@ -164,11 +164,12 @@ def finish():
         v = np.clip(rgb / S, 0, 1)
         srgb = np.where(v <= 0.0031308, v * 12.92, 1.055 * np.power(v, 1 / 2.4) - 0.055)
         im = Image.fromarray((srgb * 255 + 0.5).astype(np.uint8)[::-1])     # Blender images are bottom-up
-        im.save(os.path.join(LM_PUB, key + '.jpg'), quality=90, optimize=True, progressive=True)
-        im.resize((g['size'] // 2, g['size'] // 2), Image.LANCZOS).save(os.path.join(LM_PUB, key + '_s.jpg'), quality=88, optimize=True)
+        ext = 'png' if key in ('structures', 'surfaces') else 'jpg'      # hard shadow edges on the atlases: no JPEG ringing
+        if ext == 'png': im.save(os.path.join(LM_PUB, key + '.png'), optimize=True); im.resize((g['size'] // 2, g['size'] // 2), Image.LANCZOS).save(os.path.join(LM_PUB, key + '_s.png'), optimize=True)
+        else: im.save(os.path.join(LM_PUB, key + '.jpg'), quality=92, optimize=True, progressive=True); im.resize((g['size'] // 2, g['size'] // 2), Image.LANCZOS).save(os.path.join(LM_PUB, key + '_s.jpg'), quality=90, optimize=True)
         names = [g['join']] if g.get('join') else g['names']
         # viewer units: Blender irradiance * 2^EV / (toneMappingExposure 0.9 handled in viewer)
-        meta['maps'][key] = {'file': key + '.jpg', 'file_small': key + '_s.jpg', 'scale': S, 'objects': names, 'sunlit_p99': S,
+        meta['maps'][key] = {'file': key + '.' + ext, 'file_small': key + '_s.' + ext, 'scale': S, 'objects': names, 'sunlit_p99': S,
                              'mean_lum': float(lum[covered].mean()) if covered.any() else 0.0}
         print(f'{key}: scale {S:.2f}, mean {meta["maps"][key]["mean_lum"]:.2f}, covered {covered.mean():.2f}')
     json.dump(meta, open(os.path.join(LM_PUB, 'lightmaps.json'), 'w'), indent=1)
